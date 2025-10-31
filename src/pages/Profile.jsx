@@ -13,13 +13,36 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [availableRoles, setAvailableRoles] = useState(['professor']);
 
   const loadUserData = useCallback(async () => {
     try {
       const userData = await User.me();
-      setUser(userData);
-      setFormData(userData || {}); 
-      setIsAdmin(userData.role === 'admin');
+      const normalizedUser = userData || {};
+      const adminRoleList = ['admin', 'gestor', 'articulador', 'professor'];
+      const rawRoles = Array.isArray(normalizedUser.available_roles) ? normalizedUser.available_roles : [];
+      const isAdminAccount = Boolean(normalizedUser.is_admin_account || rawRoles.includes('admin'));
+
+      let roles = [];
+      if (isAdminAccount) {
+        roles = adminRoleList;
+      } else {
+        const fallbackRole = normalizedUser.app_role || 'professor';
+        roles = rawRoles.filter((role) => role !== 'admin');
+
+        if (!roles.includes(fallbackRole)) {
+          roles = [...roles, fallbackRole];
+        }
+
+        if (roles.length === 0) {
+          roles = [fallbackRole];
+        }
+      }
+
+      setUser(normalizedUser);
+      setAvailableRoles(Array.from(new Set(roles)));
+      setFormData({ ...normalizedUser, available_roles: roles, is_admin_account: isAdminAccount });
+      setIsAdmin(isAdminAccount);
     } catch (error) {
       console.error("Erro ao carregar dados do usuário:", error);
       navigate(createPageUrl("Dashboard"));
@@ -40,7 +63,21 @@ export default function ProfilePage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const dataToSave = { ...formData };
+      const adminRoleList = ['admin', 'gestor', 'articulador', 'professor'];
+      const rolesToPersist = isAdmin
+        ? adminRoleList
+        : Array.from(new Set((availableRoles || []).filter((role) => role !== 'admin')));
+
+      const currentRole = formData.app_role || 'professor';
+      if (!rolesToPersist.includes(currentRole)) {
+        rolesToPersist.push(currentRole);
+      }
+
+      const dataToSave = {
+        ...formData,
+        available_roles: rolesToPersist,
+        is_admin_account: isAdmin,
+      };
       
       // Limpeza de campos de texto de erro antes de salvar
       if (dataToSave.unidadeEducacional === 'Nenhuma unidade educacional encontrada com este INEP.' || 
@@ -98,6 +135,13 @@ export default function ProfilePage() {
     );
   }
 
+  const roleLabels = {
+    admin: 'Administrador',
+    gestor: 'Gestor',
+    articulador: 'Articulador',
+    professor: 'Professor',
+  };
+
   if (loading) {
     return <div className="text-center p-8">Carregando perfil...</div>;
   }
@@ -153,14 +197,21 @@ export default function ProfilePage() {
                             value={formData.app_role || 'professor'}
                             onChange={(e) => handleInputChange('app_role', e.target.value)}
                             className="neu-input w-full px-4 py-3"
-                            disabled={!isAdmin} // Only admins can change roles
+                            disabled={!isAdmin}
                         >
-                            <option value="professor">Professor</option>
-                            <option value="gestor">Gestor</option>
-                            <option value="articulador">Articulador</option>
-                            <option value="admin">Administrador</option>
+                            {availableRoles.map((role) => (
+                              <option key={role} value={role}>
+                                {roleLabels[role] || role}
+                              </option>
+                            ))}
                         </select>
-                        {!isAdmin && <p className="text-xs text-gray-500 mt-1">O perfil de acesso só pode ser alterado por um administrador.</p>}
+                        {isAdmin ? (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Administrador: selecione o perfil que deseja simular e salve as alterações.
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-500 mt-1">O perfil de acesso só pode ser alterado por um administrador.</p>
+                        )}
                     </div>
                 </div>
             </div>

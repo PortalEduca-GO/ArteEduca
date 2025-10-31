@@ -28,7 +28,9 @@ import ImportarEscolas from "./ImportarEscolas";
 
 import DeclaracaoCre from "./DeclaracaoCre";
 
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import Login from "./Login";
+
+import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 
 const PAGES = {
     
@@ -60,6 +62,8 @@ const PAGES = {
     
     DeclaracaoCre: DeclaracaoCre,
     
+    Login: Login,
+    
 }
 
 function _getCurrentPage(url) {
@@ -75,48 +79,76 @@ function _getCurrentPage(url) {
     return pageName || Object.keys(PAGES)[0];
 }
 
+// Protected Route Component
+function ProtectedRoute({ children }) {
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    const currentUser = localStorage.getItem('currentUser');
+    
+    if (!isAuthenticated || !currentUser) {
+        return <Navigate to="/Login" replace />;
+    }
+    
+    return children;
+}
+
 // Create a wrapper component that uses useLocation inside the Router context
 function PagesContent() {
     const location = useLocation();
     const currentPage = _getCurrentPage(location.pathname);
     
-    return (
-        <Layout currentPageName={currentPage}>
-            <Routes>            
-                
-                    <Route path="/" element={<Dashboard />} />
-                
-                
-                <Route path="/Dashboard" element={<Dashboard />} />
-                
-                <Route path="/CreateForm" element={<CreateForm />} />
-                
-                <Route path="/MyForms" element={<MyForms />} />
-                
-                <Route path="/EditForm" element={<EditForm />} />
-                
-                <Route path="/FormView" element={<FormView />} />
-                
-                <Route path="/FormData" element={<FormData />} />
-                
-                <Route path="/ImportFromPDF" element={<ImportFromPDF />} />
-                
-                <Route path="/ProjetoArteEduca" element={<ProjetoArteEduca />} />
-                
-                <Route path="/Profile" element={<Profile />} />
-                
-                <Route path="/TermoCompromisso" element={<TermoCompromisso />} />
-                
-                <Route path="/GerenciarUsuarios" element={<GerenciarUsuarios />} />
-                
-                <Route path="/GerenciarEscolas" element={<GerenciarEscolas />} />
-                
-                <Route path="/ImportarEscolas" element={<ImportarEscolas />} />
-                
-                <Route path="/DeclaracaoCre" element={<DeclaracaoCre />} />
-                
+    // Páginas públicas que não precisam de autenticação
+    const publicPages = ['/Login'];
+    const isPublicPage = publicPages.includes(location.pathname);
+    
+    // Se for página pública, renderizar sem Layout
+    if (isPublicPage) {
+        return (
+            <Routes>
+                <Route path="/Login" element={<Login />} />
             </Routes>
-        </Layout>
+        );
+    }
+    
+    // Páginas protegidas com Layout
+    return (
+        <ProtectedRoute>
+            <Layout currentPageName={currentPage}>
+                <Routes>            
+                    
+                        <Route path="/" element={<Dashboard />} />
+                    
+                    
+                    <Route path="/Dashboard" element={<Dashboard />} />
+                    
+                    <Route path="/CreateForm" element={<CreateForm />} />
+                    
+                    <Route path="/MyForms" element={<MyForms />} />
+                    
+                    <Route path="/EditForm" element={<EditForm />} />
+                    
+                    <Route path="/FormView" element={<FormView />} />
+                    
+                    <Route path="/FormData" element={<FormData />} />
+                    
+                    <Route path="/ImportFromPDF" element={<ImportFromPDF />} />
+                    
+                    <Route path="/ProjetoArteEduca" element={<ProjetoArteEduca />} />
+                    
+                    <Route path="/Profile" element={<Profile />} />
+                    
+                    <Route path="/TermoCompromisso" element={<TermoCompromisso />} />
+                    
+                    <Route path="/GerenciarUsuarios" element={<GerenciarUsuarios />} />
+                    
+                    <Route path="/GerenciarEscolas" element={<GerenciarEscolas />} />
+                    
+                    <Route path="/ImportarEscolas" element={<ImportarEscolas />} />
+                    
+                    <Route path="/DeclaracaoCre" element={<DeclaracaoCre />} />
+                    
+                </Routes>
+            </Layout>
+        </ProtectedRoute>
     );
 }
 

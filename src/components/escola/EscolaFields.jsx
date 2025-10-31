@@ -68,7 +68,6 @@ export default function EscolaFields({
   };
 
   const getFieldName = (field) => {
-    if (!fieldSuffix) return field;
     return field + fieldSuffix;
   };
 

@@ -79,9 +79,11 @@ export default function Layout({ children, currentPageName }) {
   const handleLogout = async () => {
     try {
       await User.logout();
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('currentUser');
       setUser(null);
       setIsAuthenticated(false);
-      window.location.reload();
+      navigate(createPageUrl('Login'));
     } catch (error) {
       console.error("Logout error:", error);
     }
@@ -106,180 +108,20 @@ export default function Layout({ children, currentPageName }) {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ backgroundColor: "#e8e9ea" }}>
-      <style>{`
-        :root {
-          --neu-bg: #ffffff;
-          --neu-light: #f8f9fa;
-          --neu-dark: #e9ecef;
-          --neu-primary: #0d7377;
-          --neu-secondary: #14a085;
-          --neu-accent: #41b883;
-          --neu-text: #212529;
-          --neu-text-light: #6c757d;
-          --neu-success: #28a745;
-          --neu-info: #17a2b8;
-          --neu-warning: #ffc107;
-          --neu-danger: #dc3545;
-        }
-
-        * {
-          -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-          overflow-x: hidden;
-          -webkit-overflow-scrolling: touch;
-          background-color: #e8e9ea;
-        }
-
-        .neu-inset {
-          background: var(--neu-bg);
-          box-shadow: inset 4px 4px 8px var(--neu-dark), inset -4px -4px 8px var(--neu-light);
-          border: 1px solid #e9ecef;
-        }
-
-        .neu-raised {
-          background: var(--neu-bg);
-          box-shadow: 4px 4px 8px var(--neu-dark), -4px -4px 8px var(--neu-light);
-          border: 1px solid #e9ecef;
-        }
-
-        .neu-pressed {
-          background: linear-gradient(135deg, var(--neu-secondary) 0%, var(--neu-primary) 100%);
-          box-shadow: inset 2px 2px 4px rgba(0,0,0,0.1);
-          color: white !important;
-          border: 1px solid var(--neu-primary);
-        }
-
-        .neu-button {
-          background: var(--neu-bg);
-          box-shadow: 2px 2px 4px var(--neu-dark), -2px -2px 4px var(--neu-light);
-          border: 1px solid #e9ecef;
-          transition: all 0.2s ease;
-          min-height: 44px;
-          min-width: 44px;
-          touch-action: manipulation;
-        }
-
-        .neu-button-primary {
-          background: #14a085; /* Cor verde do tema */
-          color: white;
-          box-shadow: 2px 2px 4px var(--neu-dark), -2px -2px 4px var(--neu-light);
-          border: 1px solid #0d7377;
-          transition: all 0.2s ease;
-          min-height: 44px;
-          min-width: 44px;
-          touch-action: manipulation;
-        }
-
-        .neu-button-primary:hover {
-          background: #118a71; /* Tom mais escuro para hover */
-          box-shadow: 3px 3px 6px var(--neu-dark), -3px -3px 6px var(--neu-light);
-          transform: translateY(-1px);
-        }
-
-        .neu-button-primary:active {
-          box-shadow: inset 1px 1px 2px var(--neu-dark);
-          transform: translateY(0);
-        }
-
-        .neu-button:hover {
-          background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-          box-shadow: 3px 3px 6px var(--neu-dark), -3px -3px 6px var(--neu-light);
-          transform: translateY(-1px);
-          border-color: var(--neu-secondary);
-        }
-
-        .neu-button:active {
-          box-shadow: inset 1px 1px 2px var(--neu-dark);
-          transform: translateY(0);
-        }
-
-        .neu-card {
-          background: var(--neu-bg);
-          box-shadow: 6px 6px 12px var(--neu-dark), -6px -6px 12px var(--neu-light);
-          border-radius: 16px;
-          border: 1px solid #e9ecef;
-        }
-
-        .neu-input {
-          background: var(--neu-bg);
-          box-shadow: inset 2px 2px 4px var(--neu-dark), inset -2px -2px 4px var(--neu-light);
-          border: 1px solid #ced4da;
-          border-radius: 8px;
-          min-height: 44px;
-          transition: all 0.2s ease;
-        }
-
-        .neu-input:focus {
-          outline: none;
-          box-shadow: inset 3px 3px 6px var(--neu-dark), inset -3px -3px 6px var(--neu-light);
-          border-color: var(--neu-primary);
-        }
-
-        .btn-primary {
-          background: linear-gradient(135deg, var(--neu-secondary) 0%, var(--neu-primary) 100%);
-          color: white;
-          border: 1px solid var(--neu-primary);
-          box-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-          transition: all 0.2s ease; /* Ensure transition for hover/active effects */
-        }
-
-        .btn-primary:hover {
-          background: linear-gradient(135deg, var(--neu-primary) 0%, #0a5d61 100%);
-          box-shadow: 3px 3px 6px rgba(0,0,0,0.15);
-          transform: translateY(-1px);
-        }
-
-        .btn-primary:active {
-          box-shadow: inset 1px 1px 2px rgba(0,0,0,0.1);
-          transform: translateY(0);
-        }
-
-        .text-primary {
-          color: var(--neu-primary) !important;
-        }
-
-        .text-secondary {
-          color: var(--neu-secondary) !important;
-        }
-
-        .bg-primary {
-          background: linear-gradient(135deg, var(--neu-secondary) 0%, var(--neu-primary) 100%) !important;
-        }
-
-        .border-primary {
-          border-color: var(--neu-primary) !important;
-        }
-
-        @media (max-width: 768px) {
-          .neu-card {
-            border-radius: 12px;
-            box-shadow: 3px 3px 6px var(--neu-dark), -3px -3px 6px var(--neu-light);
-          }
-
-          .neu-button {
-            box-shadow: 1px 1px 2px var(--neu-dark), -1px -1px 2px var(--neu-light);
-          }
-          .btn-primary {
-            box-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-          }
-        }
-      `}</style>
+    <div className="min-h-screen overflow-x-hidden brand-app-shell">
 
       <header className="lg:hidden neu-card mx-2 mt-2 p-3 sticky top-2 z-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="neu-raised p-1 rounded-full flex items-center justify-center">
+            <div className="neu-card p-2 rounded-xl flex items-center justify-center bg-white">
               <img
-                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68d01ff17e017d39292ccc5f/5700ff79c_logo-Ciranda-ico.png"
-                alt="Ciranda da Arte Logo"
-                className="w-8 h-8" />
-
+                src="/logo.webp"
+                alt="Arte Educa"
+                className="h-12 w-auto object-contain"
+              />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-800">Ciranda da Arte</h1>
+              <h1 className="text-lg font-bold text-gray-800">Arte Educa</h1>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -304,15 +146,15 @@ export default function Layout({ children, currentPageName }) {
       <header className="hidden lg:block neu-card mx-6 mt-6 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="neu-raised p-1 rounded-full flex items-center justify-center">
+            <div className="neu-card p-3 rounded-2xl flex items-center justify-center bg-white">
               <img
-                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68d01ff17e017d39292ccc5f/5700ff79c_logo-Ciranda-ico.png"
-                alt="Ciranda da Arte Logo" className="w-10 h-10" />
-
-
+                src="/logo.webp"
+                alt="Arte Educa"
+                className="h-20 w-auto object-contain"
+              />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Ciranda da Arte</h1>
+              <h1 className="text-xl font-bold text-gray-800">Arte Educa</h1>
               <p className="text-sm text-gray-700">Centro de Estudo e Pesquisa</p>
               <p className="text-xs text-gray-600">Secretaria de Estado da Educação</p>
             </div>

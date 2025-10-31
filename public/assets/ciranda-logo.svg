@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <title>Ciranda da Arte</title>
+  <defs>
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#252525" />
+      <stop offset="100%" stop-color="#3f3f3f" />
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="transparent" />
+  <g transform="translate(116 72)">
+    <g transform="translate(-60 0)">
+      <circle cx="64" cy="56" r="44" fill="#f2c500" />
+      <circle cx="64" cy="142" r="44" fill="#f2c500" />
+      <circle cx="140" cy="192" r="46" fill="#55a436" />
+      <circle cx="216" cy="216" r="46" fill="#55a436" />
+      <circle cx="292" cy="208" r="42" fill="#0065b3" />
+      <circle cx="356" cy="196" r="38" fill="#0a69b6" />
+      <circle cx="412" cy="170" r="34" fill="#d71920" />
+      <circle cx="452" cy="142" r="28" fill="#d71920" />
+    </g>
+    <g fill="url(#textGradient)">
+      <text x="190" y="70" font-family="'Roboto', 'Segoe UI', sans-serif" font-size="70" font-weight="700">Ciranda</text>
+      <text x="190" y="142" font-family="'Roboto', 'Segoe UI', sans-serif" font-size="70" font-weight="700">da Arte</text>
+      <text x="188" y="140" font-family="'Roboto', 'Segoe UI', sans-serif" font-size="52" font-weight="500" fill="none" stroke="#444" stroke-width="3">da</text>
+    </g>
+    <g transform="translate(28 252)" fill="#3f3f3f" font-family="'Roboto', 'Segoe UI', sans-serif" font-size="40" font-weight="400">
+      <text x="0" y="0">Centro de Estudo e Pesquisa</text>
+      <text x="32" y="48">Secretaria de Estado da Educação</text>
+    </g>
+  </g>
+</svg>

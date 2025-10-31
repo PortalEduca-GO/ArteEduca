@@ -24,6 +24,8 @@ import {
   ToggleRight
 } from "lucide-react";
 import EscolaFields from "@/components/escola/EscolaFields"; // Importado o componente EscolaFields
+import { validateUser, validateEmail, validateCPF } from "@/utils/validation";
+import { toast } from "sonner";
 
 export default function GerenciarUsuarios() {
   const [users, setUsers] = useState([]);
@@ -46,6 +48,8 @@ export default function GerenciarUsuarios() {
     municipio: '',
     inep: '', // Alterado de inepPrincipal para inep
     unidadeEducacional: '', // Alterado de unidadeEducacionalPrincipal para unidadeEducacional
+    creSecundaria: '',
+    municipioSecundaria: '',
     inepSecundaria: '',
     unidadeEducacionalSecundaria: '',
     isActive: true
@@ -72,11 +76,69 @@ export default function GerenciarUsuarios() {
   };
 
   const handleSaveUser = async (userData, isNew = false) => {
+    // Validar dados
+    const validation = validateUser(userData, isNew);
+    if (!validation.valid) {
+      toast.error('Erro de Validação', {
+        description: (
+          <div>
+            <p className="font-semibold mb-2">Corrija os seguintes erros:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              {validation.errors.map((error, index) => (
+                <li key={index}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        ),
+        duration: 6000,
+      });
+      return;
+    }
+
+    // Verificar email duplicado
+    if (isNew) {
+      const existingUser = users.find(u => u.email.toLowerCase() === userData.email.toLowerCase());
+      if (existingUser) {
+        toast.error('Email já cadastrado', {
+          description: 'Este email já está sendo usado por outro usuário.',
+        });
+        return;
+      }
+    } else {
+      const existingUser = users.find(u => u.id !== userData.id && u.email.toLowerCase() === userData.email.toLowerCase());
+      if (existingUser) {
+        toast.error('Email já cadastrado', {
+          description: 'Este email já está sendo usado por outro usuário.',
+        });
+        return;
+      }
+    }
+
+    // Verificar CPF duplicado
+    const cleanCPF = userData.cpf.replace(/\D/g, '');
+    if (isNew) {
+      const existingCPF = users.find(u => u.cpf.replace(/\D/g, '') === cleanCPF);
+      if (existingCPF) {
+        toast.error('CPF já cadastrado', {
+          description: 'Este CPF já está sendo usado por outro usuário.',
+        });
+        return;
+      }
+    } else {
+      const existingCPF = users.find(u => u.id !== userData.id && u.cpf.replace(/\D/g, '') === cleanCPF);
+      if (existingCPF) {
+        toast.error('CPF já cadastrado', {
+          description: 'Este CPF já está sendo usado por outro usuário.',
+        });
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       if (isNew) {
         await User.create(userData);
-        alert("Usuário criado com sucesso!");
+        toast.success("Usuário criado com sucesso!");
         setShowAddForm(false);
         setNewUser({
           full_name: '',
@@ -91,6 +153,8 @@ export default function GerenciarUsuarios() {
           municipio: '',
           inep: '', // Limpar inep
           unidadeEducacional: '', // Limpar unidadeEducacional
+          creSecundaria: '',
+          municipioSecundaria: '',
           inepSecundaria: '',
           unidadeEducacionalSecundaria: '',
           isActive: true
@@ -100,13 +164,13 @@ export default function GerenciarUsuarios() {
         // isActive changes are handled by handleToggleUserStatus.
         const { isActive, ...updateData } = userData;
         await User.update(userData.id, updateData);
-        alert("Usuário atualizado com sucesso!");
+        toast.success("Usuário atualizado com sucesso!");
         setEditingUser(null);
       }
       loadUsers();
     } catch (error) {
       console.error("Erro ao salvar usuário:", error);
-      alert("Erro ao salvar usuário. Tente novamente.");
+      toast.error("Erro ao salvar usuário. Tente novamente.");
     } finally {
       setSaving(false);
     }
@@ -119,11 +183,11 @@ export default function GerenciarUsuarios() {
     setSaving(true); // Reusing saving state to disable buttons during delete
     try {
       await User.delete(userId);
-      alert("Usuário excluído com sucesso!");
+      toast.success("Usuário excluído com sucesso!");
       loadUsers(); // Reload the list of users
     } catch (error) {
       console.error("Erro ao excluir usuário:", error);
-      alert("Erro ao excluir usuário. Tente novamente.");
+      toast.error("Erro ao excluir usuário. Tente novamente.");
     } finally {
       setSaving(false);
     }
@@ -136,11 +200,11 @@ export default function GerenciarUsuarios() {
     setSaving(true);
     try {
         await User.update(user.id, { isActive: !user.isActive });
-        alert(`Usuário ${user.isActive ? 'desativado' : 'ativado'} com sucesso!`);
+        toast.success(`Usuário ${user.isActive ? 'desativado' : 'ativado'} com sucesso!`);
         loadUsers();
     } catch (error) {
         console.error("Erro ao alterar status do usuário:", error);
-        alert("Erro ao alterar o status do usuário. Tente novamente.");
+        toast.error("Erro ao alterar o status do usuário. Tente novamente.");
     } finally {
         setSaving(false);
     }
@@ -177,7 +241,7 @@ export default function GerenciarUsuarios() {
   }
 
   // Use o 'role' fundamental para verificar a permissão de acesso.
-  if (currentUser?.role !== 'admin') {
+  if ((currentUser?.app_role || currentUser?.role) !== 'admin') {
     return (
       <div className="neu-card p-6">
         <div className="text-center py-8">
@@ -316,7 +380,7 @@ export default function GerenciarUsuarios() {
                  <EscolaFields 
                   values={newUser}
                   onChange={(field, value) => setNewUser(prev => ({ ...prev, [field]: value }))}
-                  fieldPrefix="Secundaria"
+                  fieldSuffix="Secundaria"
                 />
             </div>
           </div>

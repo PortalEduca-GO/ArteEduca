@@ -1,0 +1,258 @@
+:root {
+  --brand-blue: #2E4CA6;
+  --brand-blue-600: #202473;
+  --brand-blue-400: #49A3F2;
+  --brand-accent: #49A3F2;
+  --brand-accent-600: #2E4CA6;
+  --brand-surface: #DCEAF2;
+  --brand-text: #0D0D0D;
+  --brand-bg: linear-gradient(135deg, #202473 0%, #2E4CA6 55%, #49A3F2 100%);
+  --brand-cta: linear-gradient(45deg, #202473 0%, #2E4CA6 55%, #49A3F2 100%);
+  --brand-cta-hover: linear-gradient(45deg, #1B1F63 0%, #202473 55%, #2E4CA6 100%);
+  --brand-shadow: 0 20px 60px rgba(32, 36, 115, 0.25);
+  --brand-border: rgba(46, 76, 166, 0.18);
+
+  --background: 202 46% 91%;
+  --foreground: 0 0% 5%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 5%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 5%;
+  --primary: 225 57% 41%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 208 87% 62%;
+  --secondary-foreground: 0 0% 5%;
+  --muted: 210 40% 92%;
+  --muted-foreground: 215 16% 35%;
+  --accent: 208 87% 62%;
+  --accent-foreground: 0 0% 5%;
+  --destructive: 2 74% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 213 33% 80%;
+  --input: 213 33% 80%;
+  --ring: 225 57% 41%;
+  --chart-1: 225 57% 41%;
+  --chart-2: 208 87% 62%;
+  --chart-3: 200 72% 62%;
+  --chart-4: 188 66% 68%;
+  --chart-5: 42 92% 58%;
+  --radius: 0.75rem;
+  --sidebar-background: 210 46% 92%;
+  --sidebar-foreground: 228 18% 24%;
+  --sidebar-primary: 225 57% 41%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 208 87% 62%;
+  --sidebar-accent-foreground: 0 0% 5%;
+  --sidebar-border: 213 33% 80%;
+  --sidebar-ring: 225 57% 41%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: 225 57% 9%;
+    --foreground: 0 0% 96%;
+    --card: 232 47% 12%;
+    --card-foreground: 0 0% 96%;
+    --popover: 232 47% 12%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 208 87% 62%;
+    --primary-foreground: 0 0% 5%;
+    --secondary: 225 57% 41%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 220 25% 24%;
+    --muted-foreground: 215 16% 75%;
+    --accent: 208 87% 62%;
+    --accent-foreground: 0 0% 5%;
+    --destructive: 8 78% 62%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 225 32% 35%;
+    --input: 225 32% 35%;
+    --ring: 208 87% 62%;
+    --sidebar-background: 225 45% 12%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 208 87% 62%;
+    --sidebar-primary-foreground: 0 0% 5%;
+    --sidebar-accent: 225 57% 41%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 225 32% 35%;
+    --sidebar-ring: 208 87% 62%;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--brand-surface);
+  color: var(--brand-text);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.brand-app-shell {
+  background: var(--brand-surface);
+}
+
+.neu-card {
+  background: #ffffff;
+  border: 1px solid var(--brand-border);
+  border-radius: 18px;
+  box-shadow: 0 14px 36px rgba(32, 36, 115, 0.12);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.neu-card:hover {
+  box-shadow: 0 20px 48px rgba(32, 36, 115, 0.16);
+  transform: translateY(-2px);
+}
+
+.neu-inset {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 18px;
+  border: 1px solid rgba(73, 163, 242, 0.16);
+  box-shadow: inset 2px 2px 6px rgba(32, 36, 115, 0.08), inset -2px -2px 6px rgba(255, 255, 255, 0.8);
+}
+
+.neu-raised {
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 6px 6px 16px rgba(32, 36, 115, 0.16), -4px -4px 12px rgba(255, 255, 255, 0.9);
+}
+
+.neu-pressed {
+  background: var(--brand-cta);
+  border: 1px solid rgba(32, 36, 115, 0.48);
+  color: #ffffff !important;
+  box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.2);
+}
+
+.neu-button {
+  background: #ffffff;
+  border: 1px solid var(--brand-border);
+  border-radius: 14px;
+  color: var(--brand-text);
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.65rem 1.25rem;
+  box-shadow: 0 6px 16px rgba(32, 36, 115, 0.16);
+  transition: all 0.25s ease;
+}
+
+.neu-button:hover {
+  background: linear-gradient(135deg, rgba(73, 163, 242, 0.18) 0%, rgba(46, 76, 166, 0.08) 100%);
+  box-shadow: 0 10px 30px rgba(32, 36, 115, 0.18);
+  border-color: rgba(46, 76, 166, 0.35);
+  transform: translateY(-2px);
+}
+
+.neu-button:active {
+  transform: translateY(0);
+  box-shadow: inset 2px 2px 6px rgba(32, 36, 115, 0.16);
+}
+
+.neu-button-primary {
+  background: var(--brand-cta);
+  color: #ffffff;
+  border-radius: 14px;
+  border: none;
+  min-height: 48px;
+  padding: 0.75rem 1.5rem;
+  box-shadow: var(--brand-shadow);
+  transition: all 0.25s ease;
+}
+
+.neu-button-primary:hover {
+  background: var(--brand-cta-hover);
+  box-shadow: 0 26px 60px rgba(32, 36, 115, 0.35);
+  transform: translateY(-2px);
+}
+
+.neu-button-primary:active {
+  transform: translateY(0);
+  box-shadow: inset 2px 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.neu-input {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  border: 1px solid rgba(46, 76, 166, 0.22);
+  box-shadow: inset 1px 1px 3px rgba(32, 36, 115, 0.12), inset -1px -1px 3px rgba(255, 255, 255, 0.9);
+  transition: all 0.2s ease;
+}
+
+.neu-input:focus {
+  outline: none;
+  border-color: rgba(73, 163, 242, 0.75);
+  box-shadow: 0 0 0 4px rgba(73, 163, 242, 0.15);
+}
+
+.btn-primary {
+  background: var(--brand-cta);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 700;
+  box-shadow: var(--brand-shadow);
+  transition: all 0.25s ease;
+}
+
+.btn-primary:hover {
+  background: var(--brand-cta-hover);
+  box-shadow: 0 26px 60px rgba(32, 36, 115, 0.35);
+  transform: translateY(-2px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: inset 2px 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.brand-surface {
+  background: var(--brand-surface);
+}
+
+.brand-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.brand-text-muted {
+  color: rgba(13, 13, 13, 0.7);
+}
+
+.brand-gradient-border {
+  border-image: var(--brand-cta) 1;
+}
+
+@media (max-width: 768px) {
+  .neu-card {
+    border-radius: 14px;
+    box-shadow: 0 10px 24px rgba(32, 36, 115, 0.12);
+  }
+
+  .neu-button {
+    padding: 0.6rem 1.15rem;
+    box-shadow: 0 6px 18px rgba(32, 36, 115, 0.16);
+  }
+}

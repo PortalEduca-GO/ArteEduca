@@ -289,57 +289,136 @@ class LocalUserEntity extends LocalEntity {
     this.currentUser = null;
   }
 
+  normalizeUser(user = {}, existing = {}) {
+    const combined = { ...existing, ...user };
+    const appRole = combined.app_role || combined.appRole || combined.role || 'professor';
+    const fullName = combined.full_name || combined.fullName || combined.name || '';
+    const rawAvailableRoles = combined.available_roles || combined.availableRoles;
+    const persistedAdminFlag = combined.is_admin_account ?? combined.isAdminAccount;
+    const hadAdminRole = Array.isArray(rawAvailableRoles) && rawAvailableRoles.includes('admin');
+    const isAdminAccount = persistedAdminFlag !== undefined
+      ? Boolean(persistedAdminFlag)
+      : (appRole === 'admin' || combined.id === 'user-admin-001' || combined.email === 'admin@adm' || hadAdminRole);
+
+    let availableRoles = rawAvailableRoles;
+    if (!Array.isArray(availableRoles) || availableRoles.length === 0) {
+      availableRoles = isAdminAccount
+        ? ['admin', 'gestor', 'articulador', 'professor']
+        : [appRole];
+    }
+
+    if (isAdminAccount) {
+      availableRoles = ['admin', 'gestor', 'articulador', 'professor'];
+    } else {
+      const allowedNonAdminRoles = ['gestor', 'articulador', 'professor'];
+      availableRoles = Array.from(new Set(
+        availableRoles.filter((role) => allowedNonAdminRoles.includes(role))
+      ));
+
+      if (appRole && !availableRoles.includes(appRole)) {
+        availableRoles.push(appRole);
+      }
+    }
+
+    return {
+      ...combined,
+      app_role: appRole,
+      role: appRole,
+      full_name: fullName,
+      name: combined.name || fullName,
+      available_roles: availableRoles,
+      is_admin_account: isAdminAccount,
+    };
+  }
+
+  async list(orderBy = '-created_date') {
+    const users = await super.list(orderBy);
+    return users.map((user) => this.normalizeUser(user));
+  }
+
+  async get(id) {
+    const user = await super.get(id);
+    return this.normalizeUser(user);
+  }
+
+  async create(data) {
+    const normalized = this.normalizeUser(data);
+    const created = await super.create(normalized);
+    return this.normalizeUser(created);
+  }
+
+  async update(id, data) {
+    const existing = await super.get(id);
+    const normalized = this.normalizeUser(data, existing || {});
+    const updated = await super.update(id, normalized);
+    return this.normalizeUser(updated);
+  }
+
   async me() {
     // Retornar usuário atual da sessão ou criar um usuário padrão
     if (this.currentUser) {
+      this.currentUser = this.normalizeUser(this.currentUser);
       return this.currentUser;
     }
 
     // Verificar se existe usuário no localStorage
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
-      this.currentUser = JSON.parse(savedUser);
-      return this.currentUser;
+      const normalized = this.normalizeUser(JSON.parse(savedUser));
+      this.currentUser = normalized;
+      localStorage.setItem('currentUser', JSON.stringify(normalized));
+      return normalized;
     }
 
-    // Criar usuário padrão para desenvolvimento
-    const defaultUser = {
-      id: 'user-dev-001',
-      name: 'Usuário Desenvolvimento',
-      email: 'dev@localhost.com',
-      app_role: 'admin',
-      cpf: '000.000.000-00',
-      cre: 'CRE 01',
-      municipio: 'Rio de Janeiro',
-      unidadeEducacional: 'Escola Teste',
-      inep: '00000000',
-      created_date: new Date().toISOString()
-    };
-
-    this.currentUser = defaultUser;
-    localStorage.setItem('currentUser', JSON.stringify(defaultUser));
+    // Criar usuário padrão para desenvolvimento APENAS se não existir nenhum usuário
+    const allUsers = await super.list();
     
-    // Salvar no banco de dados se não existir
-    try {
-      const existing = await this.get(defaultUser.id);
-      if (!existing) {
+    if (allUsers.length === 0) {
+      const bcrypt = await import('bcryptjs');
+      const hashedPassword = await bcrypt.default.hash('admin123', 10);
+      
+      const defaultUser = this.normalizeUser({
+        id: 'user-dev-001',
+        full_name: 'Administrador',
+        email: 'admin@localhost.com',
+        password: hashedPassword,
+        app_role: 'admin',
+        cpf: '000.000.000-00',
+        cre: 'CRE 01',
+        municipio: 'Goiânia',
+        unidadeEducacional: 'Escola Teste',
+        inep: '00000000',
+        created_date: new Date().toISOString()
+      });
+
+      this.currentUser = defaultUser;
+      localStorage.setItem('currentUser', JSON.stringify(defaultUser));
+    
+      // Salvar no banco de dados se não existir
+      try {
+        const existing = await this.get(defaultUser.id);
+        if (!existing) {
+          await this.create(defaultUser);
+        }
+      } catch (error) {
         await this.create(defaultUser);
       }
-    } catch (error) {
-      await this.create(defaultUser);
-    }
 
-    return defaultUser;
+      return defaultUser;
+    }
+    
+    // Se não há usuário autenticado e há usuários no banco, não criar usuário padrão
+    return null;
   }
 
   async updateMyUserData(data) {
     const currentUser = await this.me();
-    const updated = { ...currentUser, ...data };
-    
-    this.currentUser = updated;
-    localStorage.setItem('currentUser', JSON.stringify(updated));
-    
-    return await this.update(currentUser.id, updated);
+    const updated = await this.update(currentUser.id, data);
+
+    this.currentUser = this.normalizeUser(updated);
+    localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+
+    return this.currentUser;
   }
 
   async loginWithRedirect(callbackUrl) {
@@ -351,6 +430,40 @@ class LocalUserEntity extends LocalEntity {
     this.currentUser = null;
     localStorage.removeItem('currentUser');
     return { success: true };
+  }
+
+  // Garantir que existe pelo menos um usuário admin
+  async ensureAdminUser() {
+    const allUsers = await super.list();
+    
+    if (allUsers.length === 0) {
+      const bcrypt = await import('bcryptjs');
+      const hashedPassword = await bcrypt.default.hash('admin123', 10);
+      
+      const adminUser = {
+        id: 'user-admin-001',
+        full_name: 'Administrador',
+        email: 'admin@adm',
+        password: hashedPassword,
+        app_role: 'admin',
+        role: 'admin',
+        name: 'Administrador',
+        available_roles: ['admin', 'gestor', 'articulador', 'professor'],
+  is_admin_account: true,
+        cpf: '000.000.000-00',
+        cre: 'CRE 01',
+        municipio: 'Goiânia',
+        unidadeEducacional: 'Escola Administrativa',
+        inep: '00000001',
+        created_date: new Date().toISOString()
+      };
+
+      await super.create(adminUser);
+      console.log('✅ Usuário admin criado: admin@adm / admin123');
+      return adminUser;
+    }
+    
+    return null;
   }
 }
 
@@ -365,8 +478,17 @@ export const LocalDeclaracaoCre = new LocalEntity('declaracoes');
 // Exportar instância do User
 export const LocalUser = new LocalUserEntity();
 
-// Inicializar o banco ao carregar o módulo
-initDB().catch(console.error);
+// Inicializar o banco ao carregar o módulo e garantir usuário admin
+const initializeDatabase = async () => {
+  try {
+    await initDB();
+    await LocalUser.ensureAdminUser();
+  } catch (error) {
+    console.error('Erro ao inicializar banco de dados:', error);
+  }
+};
+
+initializeDatabase();
 
 // Função para popular dados de exemplo (opcional)
 export const seedDatabase = async () => {

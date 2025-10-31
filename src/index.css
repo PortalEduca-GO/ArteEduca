@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Variáveis do tema azul (Arte Educa) */
+:root {
+  --brand-bg: linear-gradient(135deg, #202473 0%, #2E4CA6 50%, #49A3F2 100%);
+  --brand-cta: linear-gradient(135deg, #202473 0%, #2E4CA6 50%, #49A3F2 100%);
+  --brand-cta-hover: linear-gradient(135deg, #1B1F63 0%, #202473 50%, #2E4CA6 100%);
+  --brand-primary: #2E4CA6;
+  --brand-base: #202473;
+  --brand-accent: #49A3F2;
+  --brand-surface: #DCEAF2;
+  --brand-shadow: rgba(32, 36, 115, 0.35);
+  --brand-text: #0D0D0D;
+  --brand-text-secondary: rgba(13, 13, 13, 0.7);
+}
+
 
 /* :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;

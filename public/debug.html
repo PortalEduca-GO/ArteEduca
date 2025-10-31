@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - IndexedDB ArteEduca</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        button {
+            background: #2E4CA6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #202473;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔧 Debug IndexedDB - ArteEduca</h1>
+        <p>Ferramenta para inspecionar e gerenciar o banco de dados local</p>
+    </div>
+
+    <div class="card">
+        <h2>👥 Usuários</h2>
+        <button onclick="listUsers()">📋 Listar Usuários</button>
+        <button onclick="createAdminUser()">➕ Criar Usuário Admin</button>
+        <button class="danger" onclick="clearUsers()">🗑️ Limpar Usuários</button>
+        <div id="users-output"></div>
+    </div>
+
+    <div class="card">
+        <h2>🗄️ Banco de Dados</h2>
+        <button onclick="checkDatabase()">🔍 Verificar Banco</button>
+        <button class="danger" onclick="clearAllData()">⚠️ Limpar TUDO</button>
+        <div id="db-output"></div>
+    </div>
+
+    <div class="card">
+        <h2>🔐 Testar Login</h2>
+        <input type="email" id="test-email" placeholder="Email" value="admin@localhost.com" style="padding: 8px; margin-right: 10px; border: 1px solid #ddd; border-radius: 4px;">
+        <input type="password" id="test-password" placeholder="Senha" value="admin123" style="padding: 8px; margin-right: 10px; border: 1px solid #ddd; border-radius: 4px;">
+        <button onclick="testLogin()">🔑 Testar Login</button>
+        <div id="login-output"></div>
+    </div>
+
+    <script type="module">
+        import bcrypt from '/node_modules/bcryptjs/dist/bcrypt.js';
+        window.bcrypt = bcrypt;
+
+        const DB_NAME = 'ArteEducaDB';
+        const DB_VERSION = 1;
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        window.listUsers = async function() {
+            const output = document.getElementById('users-output');
+            try {
+                const db = await openDB();
+                const transaction = db.transaction(['users'], 'readonly');
+                const store = transaction.objectStore('users');
+                const request = store.getAll();
+
+                request.onsuccess = () => {
+                    const users = request.result;
+                    output.innerHTML = `
+                        <div class="status info">Total: ${users.length} usuário(s)</div>
+                        <pre>${JSON.stringify(users.map(u => ({
+                            id: u.id,
+                            email: u.email,
+                            full_name: u.full_name,
+                            app_role: u.app_role,
+                            has_password: !!u.password,
+                            password_type: u.password?.startsWith('$2') ? 'bcrypt' : 'plain'
+                        })), null, 2)}</pre>
+                    `;
+                };
+            } catch (error) {
+                output.innerHTML = `<div class="status error">Erro: ${error.message}</div>`;
+            }
+        };
+
+        window.createAdminUser = async function() {
+            const output = document.getElementById('users-output');
+            try {
+                const db = await openDB();
+                const hashedPassword = await bcrypt.hash('admin123', 10);
+                
+                const adminUser = {
+                    id: 'user-admin-' + Date.now(),
+                    full_name: 'Administrador',
+                    name: 'Administrador',
+                    email: 'admin@localhost.com',
+                    password: hashedPassword,
+                    app_role: 'admin',
+                    role: 'admin',
+                    cpf: '000.000.000-00',
+                    cre: 'CRE 01',
+                    municipio: 'Goiânia',
+                    unidadeEducacional: 'Escola Administrativa',
+                    inep: '00000001',
+                    created_date: new Date().toISOString()
+                };
+
+                const transaction = db.transaction(['users'], 'readwrite');
+                const store = transaction.objectStore('users');
+                const request = store.add(adminUser);
+
+                request.onsuccess = () => {
+                    output.innerHTML = `
+                        <div class="status success">✅ Usuário admin criado!</div>
+                        <pre>Email: admin@localhost.com\nSenha: admin123</pre>
+                    `;
+                };
+                request.onerror = () => {
+                    output.innerHTML = `<div class="status error">❌ Erro: ${request.error}</div>`;
+                };
+            } catch (error) {
+                output.innerHTML = `<div class="status error">Erro: ${error.message}</div>`;
+            }
+        };
+
+        window.clearUsers = async function() {
+            if (!confirm('Tem certeza que deseja remover TODOS os usuários?')) return;
+            
+            const output = document.getElementById('users-output');
+            try {
+                const db = await openDB();
+                const transaction = db.transaction(['users'], 'readwrite');
+                const store = transaction.objectStore('users');
+                const request = store.clear();
+
+                request.onsuccess = () => {
+                    output.innerHTML = `<div class="status success">✅ Todos os usuários foram removidos</div>`;
+                };
+            } catch (error) {
+                output.innerHTML = `<div class="status error">Erro: ${error.message}</div>`;
+            }
+        };
+
+        window.checkDatabase = async function() {
+            const output = document.getElementById('db-output');
+            try {
+                const db = await openDB();
+                const stores = ['forms', 'submissions', 'users', 'projetos', 'termos', 'escolas', 'declaracoes'];
+                let html = '<div class="status info">📊 Status do Banco</div><pre>';
+
+                for (const storeName of stores) {
+                    const transaction = db.transaction([storeName], 'readonly');
+                    const store = transaction.objectStore(storeName);
+                    const countRequest = store.count();
+                    
+                    await new Promise(resolve => {
+                        countRequest.onsuccess = () => {
+                            html += `${storeName}: ${countRequest.result} registro(s)\n`;
+                            resolve();
+                        };
+                    });
+                }
+
+                html += '</pre>';
+                output.innerHTML = html;
+            } catch (error) {
+                output.innerHTML = `<div class="status error">Erro: ${error.message}</div>`;
+            }
+        };
+
+        window.clearAllData = async function() {
+            if (!confirm('⚠️ ATENÇÃO: Isso irá APAGAR TODOS OS DADOS do banco! Continuar?')) return;
+            
+            const output = document.getElementById('db-output');
+            try {
+                const db = await openDB();
+                const stores = ['forms', 'submissions', 'users', 'projetos', 'termos', 'escolas', 'declaracoes'];
+                
+                for (const storeName of stores) {
+                    const transaction = db.transaction([storeName], 'readwrite');
+                    const store = transaction.objectStore(storeName);
+                    await store.clear();
+                }
+
+                localStorage.clear();
+                output.innerHTML = `<div class="status success">✅ Todos os dados foram removidos. Recarregue a página.</div>`;
+            } catch (error) {
+                output.innerHTML = `<div class="status error">Erro: ${error.message}</div>`;
+            }
+        };
+
+        window.testLogin = async function() {
+            const email = document.getElementById('test-email').value;
+            const password = document.getElementById('test-password').value;
+            const output = document.getElementById('login-output');
+
+            try {
+                const db = await openDB();
+                const transaction = db.transaction(['users'], 'readonly');
+                const store = transaction.objectStore('users');
+                const request = store.getAll();
+
+                request.onsuccess = async () => {
+                    const users = request.result;
+                    const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+                    if (!user) {
+                        output.innerHTML = `<div class="status error">❌ Usuário não encontrado</div>`;
+                        return;
+                    }
+
+                    let passwordValid = false;
+                    if (user.password) {
+                        if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
+                            passwordValid = await bcrypt.compare(password, user.password);
+                        } else {
+                            passwordValid = user.password === password;
+                        }
+                    }
+
+                    if (passwordValid) {
+                        output.innerHTML = `
+                            <div class="status success">✅ Login bem-sucedido!</div>
+                            <pre>Usuário: ${user.full_name}\nEmail: ${user.email}\nPerfil: ${user.app_role}</pre>
+                        `;
+                    } else {
+                        output.innerHTML = `<div class="status error">❌ Senha incorreta</div>`;
+                    }
+                };
+            } catch (error) {
+                output.innerHTML = `<div class="status error">Erro: ${error.message}</div>`;
+            }
+        };
+
+        // Auto-check ao carregar
+        window.addEventListener('load', () => {
+            checkDatabase();
+            listUsers();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificação de Login - Arte Educa</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        button {
+            background: #2E4CA6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #49A3F2;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ffc107;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Verificação de Login - Arte Educa</h1>
+    
+    <div class="card">
+        <h2>1. Informações do Banco de Dados</h2>
+        <button onclick="checkDatabase()">🔍 Verificar Banco</button>
+        <button onclick="listUsers()">👥 Listar Usuários</button>
+        <div id="dbInfo"></div>
+    </div>
+
+    <div class="card">
+        <h2>2. Gerenciar Usuário Admin</h2>
+        <button onclick="createAdminUser()">➕ Criar/Recriar Admin</button>
+        <button onclick="testAdminLogin()">🔐 Testar Login Admin</button>
+        <div id="adminInfo"></div>
+    </div>
+
+    <div class="card">
+        <h2>3. Limpar Dados</h2>
+        <button class="danger" onclick="clearLocalStorage()">🗑️ Limpar LocalStorage</button>
+        <button class="danger" onclick="clearDatabase()">⚠️ Limpar Banco (CUIDADO!)</button>
+        <div id="clearInfo"></div>
+    </div>
+
+    <div class="card">
+        <h2>4. Teste de Login Manual</h2>
+        <input type="email" id="testEmail" placeholder="Email" value="admin@localhost.com" style="padding: 8px; margin: 5px; width: 200px;">
+        <input type="password" id="testPassword" placeholder="Senha" value="admin123" style="padding: 8px; margin: 5px; width: 200px;">
+        <button onclick="testLogin()">🚀 Testar Login</button>
+        <div id="loginTest"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
+    <script>
+        const DB_NAME = 'ArteEducaDB';
+        const DB_VERSION = 1;
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function checkDatabase() {
+            const output = document.getElementById('dbInfo');
+            output.innerHTML = '<p>Verificando...</p>';
+            
+            try {
+                const db = await openDB();
+                const stores = ['users', 'projetos', 'escolas', 'termos', 'declaracoes', 'forms', 'submissions'];
+                let html = '<h3 class="success">✅ Banco de dados conectado!</h3>';
+                
+                for (const storeName of stores) {
+                    const tx = db.transaction(storeName, 'readonly');
+                    const store = tx.objectStore(storeName);
+                    const count = await new Promise((resolve) => {
+                        const req = store.count();
+                        req.onsuccess = () => resolve(req.result);
+                    });
+                    html += `<p><strong>${storeName}:</strong> ${count} registros</p>`;
+                }
+                
+                output.innerHTML = html;
+            } catch (error) {
+                output.innerHTML = `<p class="error">❌ Erro: ${error.message}</p>`;
+            }
+        }
+
+        async function listUsers() {
+            const output = document.getElementById('dbInfo');
+            output.innerHTML = '<p>Carregando usuários...</p>';
+            
+            try {
+                const db = await openDB();
+                const tx = db.transaction('users', 'readonly');
+                const store = tx.objectStore('users');
+                const users = await new Promise((resolve) => {
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result);
+                });
+                
+                if (users.length === 0) {
+                    output.innerHTML = '<p class="warning">⚠️ Nenhum usuário encontrado no banco!</p>';
+                    return;
+                }
+                
+                let html = '<h3 class="success">👥 Usuários Cadastrados:</h3>';
+                users.forEach(user => {
+                    const passwordType = user.password?.startsWith('$2') ? '🔒 Hash' : '⚠️ Texto plano';
+                    html += `
+                        <div style="border: 1px solid #ddd; padding: 10px; margin: 5px 0; border-radius: 5px;">
+                            <p><strong>Email:</strong> ${user.email}</p>
+                            <p><strong>Nome:</strong> ${user.full_name || user.name}</p>
+                            <p><strong>Função:</strong> ${user.app_role || user.role}</p>
+                            <p><strong>Senha:</strong> ${passwordType}</p>
+                            <p><strong>CPF:</strong> ${user.cpf || 'Não informado'}</p>
+                            <p><strong>INEP:</strong> ${user.inep || 'Não informado'}</p>
+                        </div>
+                    `;
+                });
+                
+                output.innerHTML = html;
+            } catch (error) {
+                output.innerHTML = `<p class="error">❌ Erro: ${error.message}</p>`;
+            }
+        }
+
+        async function createAdminUser() {
+            const output = document.getElementById('adminInfo');
+            output.innerHTML = '<p>Criando usuário admin...</p>';
+            
+            try {
+                const db = await openDB();
+                
+                // Verificar se admin já existe
+                const tx = db.transaction('users', 'readonly');
+                const store = tx.objectStore('users');
+                const users = await new Promise((resolve) => {
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result);
+                });
+                
+                const existingAdmin = users.find(u => u.email === 'admin@localhost.com');
+                
+                // Hashear senha
+                const hashedPassword = bcrypt.hashSync('admin123', 10);
+                
+                const adminUser = {
+                    id: 'user-admin-001',
+                    full_name: 'Administrador',
+                    name: 'Administrador',
+                    email: 'admin@localhost.com',
+                    password: hashedPassword,
+                    app_role: 'admin',
+                    role: 'admin',
+                    cpf: '000.000.000-00',
+                    rg: '0000000',
+                    cre: 'Todas',
+                    municipio: 'Goiânia',
+                    unidadeEducacional: 'Secretaria de Educação',
+                    inep: '00000001',
+                    telefone: '(62) 0000-0000',
+                    isActive: true,
+                    created_date: new Date().toISOString()
+                };
+                
+                const txWrite = db.transaction('users', 'readwrite');
+                const storeWrite = txWrite.objectStore('users');
+                
+                if (existingAdmin) {
+                    // Atualizar existente
+                    await new Promise((resolve, reject) => {
+                        const req = storeWrite.put(adminUser);
+                        req.onsuccess = () => resolve();
+                        req.onerror = () => reject(req.error);
+                    });
+                    output.innerHTML = '<p class="success">✅ Usuário admin atualizado com sucesso!</p>' +
+                        '<p><strong>Email:</strong> admin@localhost.com</p>' +
+                        '<p><strong>Senha:</strong> admin123</p>';
+                } else {
+                    // Criar novo
+                    await new Promise((resolve, reject) => {
+                        const req = storeWrite.add(adminUser);
+                        req.onsuccess = () => resolve();
+                        req.onerror = () => reject(req.error);
+                    });
+                    output.innerHTML = '<p class="success">✅ Usuário admin criado com sucesso!</p>' +
+                        '<p><strong>Email:</strong> admin@localhost.com</p>' +
+                        '<p><strong>Senha:</strong> admin123</p>';
+                }
+            } catch (error) {
+                output.innerHTML = `<p class="error">❌ Erro: ${error.message}</p>`;
+                console.error(error);
+            }
+        }
+
+        async function testAdminLogin() {
+            const output = document.getElementById('adminInfo');
+            output.innerHTML = '<p>Testando login...</p>';
+            
+            try {
+                const db = await openDB();
+                const tx = db.transaction('users', 'readonly');
+                const store = tx.objectStore('users');
+                const users = await new Promise((resolve) => {
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result);
+                });
+                
+                const admin = users.find(u => u.email === 'admin@localhost.com');
+                
+                if (!admin) {
+                    output.innerHTML = '<p class="error">❌ Usuário admin não encontrado!</p>';
+                    return;
+                }
+                
+                const passwordValid = bcrypt.compareSync('admin123', admin.password);
+                
+                if (passwordValid) {
+                    output.innerHTML = '<p class="success">✅ Login admin funcionando corretamente!</p>' +
+                        '<p>Email: admin@localhost.com</p>' +
+                        '<p>Senha: admin123</p>' +
+                        '<p>Você pode fazer login agora.</p>';
+                } else {
+                    output.innerHTML = '<p class="error">❌ Senha não confere!</p>' +
+                        '<p>Tente recriar o usuário admin.</p>';
+                }
+            } catch (error) {
+                output.innerHTML = `<p class="error">❌ Erro: ${error.message}</p>`;
+            }
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('testEmail').value;
+            const password = document.getElementById('testPassword').value;
+            const output = document.getElementById('loginTest');
+            
+            output.innerHTML = '<p>Testando login...</p>';
+            
+            try {
+                const db = await openDB();
+                const tx = db.transaction('users', 'readonly');
+                const store = tx.objectStore('users');
+                const users = await new Promise((resolve) => {
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result);
+                });
+                
+                const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+                
+                if (!user) {
+                    output.innerHTML = `<p class="error">❌ Usuário não encontrado: ${email}</p>`;
+                    return;
+                }
+                
+                const passwordValid = user.password.startsWith('$2') 
+                    ? bcrypt.compareSync(password, user.password)
+                    : user.password === password;
+                
+                if (passwordValid) {
+                    output.innerHTML = `
+                        <p class="success">✅ Login bem-sucedido!</p>
+                        <pre>${JSON.stringify(user, null, 2)}</pre>
+                        <p><a href="/Login">Ir para a página de login</a></p>
+                    `;
+                } else {
+                    output.innerHTML = '<p class="error">❌ Senha incorreta!</p>';
+                }
+            } catch (error) {
+                output.innerHTML = `<p class="error">❌ Erro: ${error.message}</p>`;
+            }
+        }
+
+        function clearLocalStorage() {
+            localStorage.clear();
+            document.getElementById('clearInfo').innerHTML = '<p class="success">✅ LocalStorage limpo!</p>';
+        }
+
+        async function clearDatabase() {
+            if (!confirm('⚠️ ATENÇÃO: Isso vai apagar TODOS os dados do banco! Continuar?')) {
+                return;
+            }
+            
+            const output = document.getElementById('clearInfo');
+            output.innerHTML = '<p>Limpando banco...</p>';
+            
+            try {
+                await new Promise((resolve, reject) => {
+                    const request = indexedDB.deleteDatabase(DB_NAME);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+                
+                output.innerHTML = '<p class="success">✅ Banco de dados limpo! Recarregue a página.</p>';
+                setTimeout(() => location.reload(), 2000);
+            } catch (error) {
+                output.innerHTML = `<p class="error">❌ Erro: ${error.message}</p>`;
+            }
+        }
+
+        // Executar verificação inicial e criar admin automaticamente
+        window.onload = async () => {
+            await checkDatabase();
+            
+            // Verificar se há usuários
+            try {
+                const db = await openDB();
+                const tx = db.transaction('users', 'readonly');
+                const store = tx.objectStore('users');
+                const users = await new Promise((resolve) => {
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result);
+                });
+                
+                if (users.length === 0) {
+                    console.log('Nenhum usuário encontrado. Criando admin automaticamente...');
+                    await createAdminUser();
+                }
+            } catch (error) {
+                console.error('Erro ao verificar usuários:', error);
+            }
+        };
+    </script>
+</body>
+</html>

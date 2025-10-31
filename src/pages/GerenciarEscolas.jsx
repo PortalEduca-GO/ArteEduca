@@ -16,6 +16,8 @@ import {
   MapPin,
   Hash,
 } from "lucide-react";
+import { validateEscola } from "@/utils/validation";
+import { toast } from "sonner";
 
 export default function GerenciarEscolas() {
   const [escolas, setEscolas] = useState([]);
@@ -53,22 +55,61 @@ export default function GerenciarEscolas() {
   };
 
   const handleSaveEscola = async (escolaData, isNew = false) => {
+    // Validar dados
+    const validation = validateEscola(escolaData);
+    if (!validation.valid) {
+      toast.error('Erro de Validação', {
+        description: (
+          <div>
+            <p className="font-semibold mb-2">Corrija os seguintes erros:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              {validation.errors.map((error, index) => (
+                <li key={index}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        ),
+        duration: 6000,
+      });
+      return;
+    }
+
+    // Verificar INEP duplicado
+    const cleanINEP = escolaData.inep.replace(/\D/g, '');
+    if (isNew) {
+      const existingINEP = escolas.find(e => e.inep.replace(/\D/g, '') === cleanINEP);
+      if (existingINEP) {
+        toast.error('INEP já cadastrado', {
+          description: 'Este INEP já está sendo usado por outra escola.',
+        });
+        return;
+      }
+    } else {
+      const existingINEP = escolas.find(e => e.id !== escolaData.id && e.inep.replace(/\D/g, '') === cleanINEP);
+      if (existingINEP) {
+        toast.error('INEP já cadastrado', {
+          description: 'Este INEP já está sendo usado por outra escola.',
+        });
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       if (isNew) {
         await Escola.create(escolaData);
-        alert("Escola criada com sucesso!");
+        toast.success("Escola criada com sucesso!");
         setShowAddForm(false);
         setNewEscola({ cre: "", municipio: "", inep: "", unidadeEducacional: "", email: "" });
       } else {
         await Escola.update(escolaData.id, escolaData);
-        alert("Escola atualizada com sucesso!");
+        toast.success("Escola atualizada com sucesso!");
         setEditingEscola(null);
       }
       loadData();
     } catch (error) {
       console.error("Erro ao salvar escola:", error);
-      alert("Erro ao salvar escola. Tente novamente.");
+      toast.error("Erro ao salvar escola. Tente novamente.");
     } finally {
       setSaving(false);
     }
@@ -78,11 +119,11 @@ export default function GerenciarEscolas() {
     if (confirm("Tem certeza que deseja excluir esta escola? Esta ação não pode ser desfeita.")) {
       try {
         await Escola.delete(escolaId);
-        alert("Escola excluída com sucesso!");
+        toast.success("Escola excluída com sucesso!");
         loadData();
       } catch (error) {
         console.error("Erro ao excluir escola:", error);
-        alert("Erro ao excluir escola. Tente novamente.");
+        toast.error("Erro ao excluir escola. Tente novamente.");
       }
     }
   };
@@ -159,7 +200,7 @@ export default function GerenciarEscolas() {
                   setSaving(false);
                 }
               }}
-              className="neu-button px-4 py-2 rounded-lg text-red-600 hover:text-red-800 flex items-center space-x-2"
+              className="neu-button flex items-center space-x-2"
               disabled={saving}
             >
               <Trash2 className="w-4 h-4" />

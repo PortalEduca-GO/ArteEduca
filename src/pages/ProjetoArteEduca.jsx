@@ -24,6 +24,8 @@ import {
   X // Added X icon for rejection
 } from "lucide-react";
 import EscolaFields from "../components/escola/EscolaFields";
+import { validateProjeto } from "../utils/validation";
+import { toast } from "sonner";
 
 // Configuration for each project type
 const projectTypeConfigs = {
@@ -165,6 +167,8 @@ const getInitialState = (tipo) => {
       ]
     },
     status: 'rascunho',
+    status_gestor: 'pendente', // Status da validação do gestor
+    status_cre: 'pendente', // Status da validação da CRE
     justificativaRejeicao: '', // Initialize rejection reason
     numeroProcessoSEI: '' // Initialize SEI process number
   };
@@ -336,6 +340,27 @@ export default function ProjetoArteEducaPage() {
 
   // Handles professor's actions (save as draft, submit for approval)
   const handleProfessorAction = async (newStatus) => {
+    // Validar apenas se estiver enviando (não no rascunho)
+    if (newStatus === 'enviado') {
+      const validation = validateProjeto(projeto);
+      if (!validation.valid) {
+        toast.error('Erro de Validação', {
+          description: (
+            <div>
+              <p className="font-semibold mb-2">Corrija os seguintes erros:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                {validation.errors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          ),
+          duration: 8000,
+        });
+        return;
+      }
+    }
+
     setSaving(true);
     let dataToSave = { ...projeto };
 
@@ -343,16 +368,23 @@ export default function ProjetoArteEducaPage() {
     if (newStatus === 'enviado') {
       dataToSave.dataSubmissao = new Date().toISOString();
       dataToSave.justificativaRejeicao = ''; // Clear rejection reason on resubmission
+      dataToSave.status_gestor = 'pendente'; // Reset gestor status on submission
+      dataToSave.status_cre = 'pendente'; // Reset CRE status on submission
+    }
+
+    // Add created_by for new projects
+    if (!projeto.id && user) {
+      dataToSave.created_by = user.email;
     }
 
     try {
       let response;
       if (projeto.id) { 
         response = await ProjetoArteEduca.update(projeto.id, dataToSave); 
-        alert(newStatus === 'rascunho' ? 'Projeto atualizado como rascunho!' : 'Projeto atualizado e enviado com sucesso!');
+        toast.success(newStatus === 'rascunho' ? 'Projeto salvo como rascunho!' : 'Projeto enviado com sucesso!');
       } else {
         response = await ProjetoArteEduca.create(dataToSave);
-        alert(newStatus === 'rascunho' ? 'Projeto salvo como rascunho!' : 'Projeto enviado com sucesso!');
+        toast.success(newStatus === 'rascunho' ? 'Projeto criado como rascunho!' : 'Projeto enviado com sucesso!');
         if (response && response.id) {
           setProjeto(prev => ({ ...prev, id: response.id, status: newStatus }));
         }
@@ -360,7 +392,7 @@ export default function ProjetoArteEducaPage() {
       setProjeto(prev => ({ ...prev, ...dataToSave })); // Update local state with new status
     } catch (error) {
       console.error("Erro ao salvar projeto:", error);
-      alert("Erro ao salvar projeto. Tente novamente.");
+      toast.error('Erro ao salvar projeto. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -379,12 +411,12 @@ export default function ProjetoArteEducaPage() {
             justificativaRejeicao: '',
             numeroProcessoSEI: numeroProcessoSEI || '' // Save SEI number
         });
-        alert('Projeto aprovado com sucesso!');
+        toast.success('Projeto aprovado com sucesso!');
         setProjeto(prev => ({ ...prev, status: 'aprovado', justificativaRejeicao: '', numeroProcessoSEI: numeroProcessoSEI || '' })); // Update local state
         setCurrentSeiNumber(numeroProcessoSEI || '');
     } catch (error) {
         console.error("Erro ao aprovar projeto:", error);
-        alert("Erro ao aprovar projeto. Tente novamente.");
+        toast.error('Erro ao aprovar projeto. Tente novamente.');
     } finally {
         setSaving(false);
         setShowRejectionReasonInput(false);
@@ -394,18 +426,18 @@ export default function ProjetoArteEducaPage() {
   // Handles admin/gestor/articulador rejecting a project
   const handleRejectProject = async () => {
     if (!currentRejectionReason.trim()) {
-        alert('Por favor, informe uma justificativa para a rejeição.');
+        toast.error('Por favor, informe uma justificativa para a rejeição.');
         return;
     }
     setSaving(true);
     try {
         await ProjetoArteEduca.update(projeto.id, { status: 'rejeitado', justificativaRejeicao: currentRejectionReason, numeroProcessoSEI: '' }); // Clear SEI number on rejection
-        alert('Projeto rejeitado com sucesso!');
+        toast.success('Projeto rejeitado.');
         setProjeto(prev => ({ ...prev, status: 'rejeitado', justificativaRejeicao: currentRejectionReason, numeroProcessoSEI: '' })); // Update local state
         setCurrentSeiNumber('');
     } catch (error) {
         console.error("Erro ao rejeitar projeto:", error);
-        alert("Erro ao rejeitar projeto. Tente novamente.");
+        toast.error('Erro ao rejeitar projeto. Tente novamente.');
     } finally {
         setSaving(false);
         setShowRejectionReasonInput(false);
@@ -584,7 +616,7 @@ export default function ProjetoArteEducaPage() {
       <div className="neu-card p-4 sm:p-6">
         <div className="text-center mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{config.pageTitle}</h1>
-          <p className="text-lg font-semibold text-green-700 mt-2">Ciranda da Arte - Arte Educa</p>
+          <p className="text-lg font-semibold text-green-700 mt-2">Arte Educa</p>
           <p className="text-sm text-gray-600 mt-1">Anexos da Portaria n.º 2037/2022</p>
           <p className="text-gray-600 mt-1">Estado de Goiás - Secretaria de Estado da Educação</p>
         </div>
@@ -1218,10 +1250,10 @@ export default function ProjetoArteEducaPage() {
               <div className="bg-yellow-50 p-4 rounded-lg mt-6">
                 <h4 className="font-bold text-gray-800 mb-2">ATENÇÃO!</h4>
                 <ul className="text-xs text-gray-700 space-y-1">
-                  <li>• As atividades relacionadas à formação continuada fora do horário escolar não devem ser incluídas no quadro de horário. Elas devem ser voltadas exclusivamente para a formação profissional, como as oferecidas pelo Ciranda da Arte, com certificado válido para a comprovação do bônus de aprimoramento profissional;</li>
+                  <li>• As atividades relacionadas à formação continuada fora do horário escolar não devem ser incluídas no quadro de horário. Elas devem ser voltadas exclusivamente para a formação profissional, como as oferecidas pelo Arte Educa, com certificado válido para a comprovação do bônus de aprimoramento profissional;</li>
                   <li>• Os horários de aprimoramento são: 20h – 5h relógio; 30h – 7h relógio e 40h – 9h relógio;</li>
                   <li>• De acordo com o Art. 6º da Portaria 2037/2022 do Projeto Arte Educa: Quando ocorrer pós turno vespertino, as aulas não podem ultrapassar as 20h.</li>
-                  <li>• Segundo a Diretriz Operacional Seduc/GO – 2025, o Professor/Instrutor modulado no Arte Educa deve estar vinculado aos processos de formação continuada fomentados pela Gerência de Arte e Educação e por meio dos cursos ofertados pelo Centro de Estudo e Pesquisa Ciranda da Arte.</li>
+                  <li>• Segundo a Diretriz Operacional Seduc/GO – 2025, o Professor/Instrutor modulado no Arte Educa deve estar vinculado aos processos de formação continuada fomentados pela Gerência de Arte e Educação e por meio dos cursos ofertados pelo Centro de Estudo e Pesquisa Arte Educa.</li>
                 </ul>
               </div>
             </div>
@@ -1271,7 +1303,7 @@ export default function ProjetoArteEducaPage() {
                               checked={linha[dia] || false}
                               onChange={(e) => {
                                     if (e.target.checked && totalHorasCalculadas >= parseInt(projeto.quadroHorario.cargaHoraria, 10)) {
-                                      alert("A carga horária total não pode exceder a carga horária semanal informada.");
+                                      toast.warning("A carga horária total não pode exceder a carga horária semanal informada.");
                                       return;
                                     }
                                     const novaModulacao = [...projeto.quadroHorario.modulacaoPrincipal];

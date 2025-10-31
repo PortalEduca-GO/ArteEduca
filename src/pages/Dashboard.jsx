@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { ProjetoArteEduca } from "@/api/entities";
-import { User } from "@/api/entities";
+import { ProjetoArteEduca, User, TermoDeCompromisso, DeclaracaoCre } from "@/api/entities";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
@@ -28,8 +27,7 @@ import {
   ShieldCheck,
   FileCheck2,
   ChevronDown
-} from
-"lucide-react";
+} from "lucide-react";
 import { format } from "date-fns";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
@@ -38,6 +36,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { toast } from "sonner";
+import { generateProjectPdf } from "@/utils/projectPdf";
 
 const projectTypeDetails = {
   artesVisuais: { name: 'Artes Visuais', icon: Palette },
@@ -72,8 +72,9 @@ export default function Dashboard() {
   });
   const [rejectionModal, setRejectionModal] = useState({ isOpen: false, projeto: null, reason: '' });
   const [approvalModal, setApprovalModal] = useState({ isOpen: false, projeto: null, seiNumber: '' });
+  const [downloadingPdfId, setDownloadingPdfId] = useState(null);
 
-  const COLORS = ['#0d7377', '#41b883', '#14a085', '#3498db', '#9b59b6', '#f39c12', '#e74c3c', '#34495e', '#7f8c8d'];
+  const COLORS = ['#202473', '#2E4CA6', '#49A3F2', '#73B9FF', '#88C6FF', '#0D0D0D', '#1B1F63', '#0B153F', '#DCEAF2'];
 
   useEffect(() => {
     loadData();
@@ -124,10 +125,46 @@ export default function Dashboard() {
       try {
         await ProjetoArteEduca.delete(projetoId);
         setProjetos((prev) => prev.filter((p) => p.id !== projetoId));
+        toast.success("Projeto excluído com sucesso!");
       } catch (error) {
         console.error("Erro ao excluir projeto:", error);
-        alert("Erro ao excluir projeto.");
+        toast.error("Erro ao excluir projeto.");
       }
+    }
+  };
+
+  const handleDownloadProjetoPdf = async (projetoItem) => {
+    if (!projetoItem?.id) {
+      toast.error("Projeto inválido para geração de PDF.");
+      return;
+    }
+
+    setDownloadingPdfId(projetoItem.id);
+    try {
+      const [termos, declaracoes] = await Promise.all([
+        TermoDeCompromisso.list().catch(() => []),
+        DeclaracaoCre.list().catch(() => [])
+      ]);
+
+      const termo = Array.isArray(termos)
+        ? termos.find((item) => item.projetoId === projetoItem.id)
+        : null;
+      const declaracao = Array.isArray(declaracoes)
+        ? declaracoes.find((item) => item.projetoId === projetoItem.id)
+        : null;
+
+      await generateProjectPdf({
+        projeto: projetoItem,
+        termo,
+        declaracao,
+        logoUrl: "/reduziada_colorida.png"
+      });
+      toast.success("PDF gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar PDF do projeto:", error);
+      toast.error("Erro ao gerar o PDF do projeto.");
+    } finally {
+      setDownloadingPdfId(null);
     }
   };
 
@@ -137,22 +174,23 @@ export default function Dashboard() {
 
   const handleRejectProject = async () => {
     if (!rejectionModal.reason) {
-      alert('A justificativa da rejeição é obrigatória.');
+      toast.error('A justificativa da rejeição é obrigatória.');
       return;
     }
     try {
       await ProjetoArteEduca.update(rejectionModal.projeto.id, {
-        status: 'rascunho',
+        status: 'rejeitado', // Changed from 'rascunho' to 'rejeitado'
         status_gestor: 'pendente',
         status_cre: 'pendente',
-        justificativaRejeicao: rejectionModal.reason
+        justificativaRejeicao: rejectionModal.reason,
+        numeroProcessoSEI: '' // Clear SEI number on rejection
       });
-      alert('Projeto rejeitado e devolvido ao professor.');
+      toast.success('Projeto rejeitado e devolvido ao professor.');
       setRejectionModal({ isOpen: false, projeto: null, reason: '' });
       loadData();
     } catch (error) {
       console.error("Erro ao rejeitar projeto:", error);
-      alert('Ocorreu um erro ao rejeitar o projeto.');
+      toast.error('Ocorreu um erro ao rejeitar o projeto.');
     }
   };
 
@@ -162,7 +200,7 @@ export default function Dashboard() {
 
   const handleApproveProject = async () => {
     if (!approvalModal.seiNumber) {
-      alert('O número do processo SEI é obrigatório para aprovação.');
+      toast.error('O número do processo SEI é obrigatório para aprovação.');
       return;
     }
     try {
@@ -170,12 +208,12 @@ export default function Dashboard() {
         status: 'aprovado',
         numeroProcessoSEI: approvalModal.seiNumber
       });
-      alert('Projeto aprovado com sucesso!');
+      toast.success('Projeto aprovado com sucesso!');
       setApprovalModal({ isOpen: false, projeto: null, seiNumber: '' });
       loadData();
     } catch (error) {
       console.error("Erro ao aprovar projeto:", error);
-      alert('Ocorreu um erro ao aprovar o projeto.');
+      toast.error('Ocorreu um erro ao aprovar o projeto.');
     }
   };
 
@@ -183,7 +221,7 @@ export default function Dashboard() {
     let updateData = {}; // Initialize as empty object
 
     if (user?.app_role !== role) {
-      alert("Você não tem permissão para executar esta ação.");
+      toast.error("Você não tem permissão para executar esta ação.");
       return;
     }
 
@@ -192,17 +230,17 @@ export default function Dashboard() {
     } else if (role === 'articulador') {
       updateData = { status_cre: newStatus };
     } else {
-      alert("Ação não definida para este perfil ou tipo de status.");
+      toast.error("Ação não definida para este perfil ou tipo de status.");
       return; // Ação não definida para este perfil
     }
 
     try {
       await ProjetoArteEduca.update(projeto.id, updateData);
-      alert("Status do projeto atualizado com sucesso!"); // Added success alert
+      toast.success("Status do projeto atualizado com sucesso!");
       loadData(); // Recarregar os dados para atualizar a interface
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
-      alert("Erro ao atualizar status do projeto.");
+      toast.error("Erro ao atualizar status do projeto.");
     }
   };
 
@@ -665,14 +703,16 @@ export default function Dashboard() {
                 }
 
                     {projeto.status !== 'rascunho' &&
-                <button
-                  className="neu-button px-4 py-2 rounded-lg text-gray-600 hover:text-gray-800 flex items-center space-x-2"
-                  title="Baixar Projeto em PDF">
+                      <button
+                        onClick={() => handleDownloadProjetoPdf(projeto)}
+                        disabled={downloadingPdfId === projeto.id}
+                        className="neu-button px-4 py-2 rounded-lg text-gray-600 hover:text-gray-800 flex items-center space-x-2 disabled:opacity-60"
+                        title="Baixar Projeto em PDF">
 
-                        <Download className="w-4 h-4" />
-                        <span>Baixar PDF</span>
+                          <Download className={`w-4 h-4 ${downloadingPdfId === projeto.id ? 'animate-pulse' : ''}`} />
+                          <span>{downloadingPdfId === projeto.id ? 'Gerando...' : 'Baixar PDF'}</span>
                       </button>
-                }
+                    }
                   </div>
                 </div>
               </AccordionContent>
