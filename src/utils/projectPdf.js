@@ -1,10 +1,10 @@
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import "jspdf-autotable";
 
-const SECTION_MARGIN = 8;
+const SECTION_MARGIN = 10;
 const PAGE_MARGIN = 15;
-const PRIMARY_COLOR = [32, 36, 115];
-const LIGHT_ROW_COLOR = [236, 242, 252];
+const PRIMARY_COLOR = [73, 163, 242];
+const LIGHT_ROW_COLOR = [233, 244, 254];
 
 const monthOrder = [
   { key: "janeiro", label: "Jan" },
@@ -85,7 +85,7 @@ async function loadImageAsPngDataUrl(path) {
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0);
           const dataUrl = canvas.toDataURL("image/png");
-          resolve(dataUrl);
+          resolve({ dataUrl, width: img.width, height: img.height });
         } catch (err) {
           reject(err);
         } finally {
@@ -105,19 +105,27 @@ async function loadImageAsPngDataUrl(path) {
 }
 
 function ensureSpace(doc, currentY, neededSpace = 20) {
+  let safeY = Number(currentY);
+  if (!Number.isFinite(safeY)) {
+    safeY = PAGE_MARGIN;
+  }
+
   const pageHeight = doc.internal.pageSize.getHeight();
-  if (currentY + neededSpace >= pageHeight - PAGE_MARGIN) {
+  if (safeY + neededSpace >= pageHeight - PAGE_MARGIN) {
     doc.addPage();
     return PAGE_MARGIN;
   }
-  return currentY;
+  return safeY;
 }
 
 function addSectionTitle(doc, title, currentY) {
   currentY = ensureSpace(doc, currentY, 12);
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text(title, PAGE_MARGIN, currentY);
+  const normalizedTitle = title === undefined || title === null ? "" : String(title);
+  if (normalizedTitle.length) {
+    doc.text(normalizedTitle, PAGE_MARGIN, currentY);
+  }
   doc.setFont("helvetica", "normal");
   return currentY + 6;
 }
@@ -125,13 +133,15 @@ function addSectionTitle(doc, title, currentY) {
 function addKeyValueTable(doc, currentY, rows) {
   if (!rows.length) return currentY;
 
-  autoTable(doc, {
-    startY: currentY,
+  const startY = ensureSpace(doc, currentY, 10);
+  doc.autoTable({
+    startY,
     head: [["Campo", "Detalhes"]],
     body: rows,
+    theme: "grid",
     styles: {
       fontSize: 10,
-      cellPadding: 2.5,
+      cellPadding: { top: 3, right: 4, bottom: 3, left: 4 },
       overflow: "linebreak"
     },
     headStyles: {
@@ -145,19 +155,24 @@ function addKeyValueTable(doc, currentY, rows) {
     margin: { left: PAGE_MARGIN, right: PAGE_MARGIN }
   });
 
-  return doc.lastAutoTable.finalY + SECTION_MARGIN;
+  const finalY = doc.lastAutoTable?.finalY
+    || doc.previousAutoTable?.finalY
+    || startY;
+  return (Number.isFinite(finalY) ? finalY : startY) + SECTION_MARGIN;
 }
 
 function addSimpleTable(doc, currentY, head, body) {
   if (!body.length) return currentY;
 
-  autoTable(doc, {
-    startY: currentY,
+  const startY = ensureSpace(doc, currentY, 10);
+  doc.autoTable({
+    startY,
     head: [head],
     body,
+    theme: "grid",
     styles: {
       fontSize: 9,
-      cellPadding: 2,
+      cellPadding: { top: 2.5, right: 3.5, bottom: 2.5, left: 3.5 },
       overflow: "linebreak"
     },
     headStyles: {
@@ -171,7 +186,10 @@ function addSimpleTable(doc, currentY, head, body) {
     margin: { left: PAGE_MARGIN, right: PAGE_MARGIN }
   });
 
-  return doc.lastAutoTable.finalY + SECTION_MARGIN;
+  const finalY = doc.lastAutoTable?.finalY
+    || doc.previousAutoTable?.finalY
+    || startY;
+  return (Number.isFinite(finalY) ? finalY : startY) + SECTION_MARGIN;
 }
 
 function addLongTextSection(doc, title, text, currentY) {
@@ -186,7 +204,10 @@ function addLongTextSection(doc, title, text, currentY) {
     const wrappedLines = doc.splitTextToSize(content, maxWidth);
     wrappedLines.forEach((line) => {
       currentY = ensureSpace(doc, currentY, 10);
-      doc.text(line, PAGE_MARGIN, currentY);
+      const normalizedLine = line === undefined || line === null ? "" : String(line);
+      if (normalizedLine.length) {
+        doc.text(normalizedLine, PAGE_MARGIN, currentY);
+      }
       currentY += 5;
     });
     currentY += 2;
@@ -326,23 +347,28 @@ export async function generateProjectPdf({
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   let currentY = PAGE_MARGIN;
 
-  const logoDataUrl = await loadImageAsPngDataUrl(logoUrl) || await loadImageAsPngDataUrl("/logo-estado.webp") || null;
+  const logoAsset = await loadImageAsPngDataUrl(logoUrl) || await loadImageAsPngDataUrl("/logo-estado.webp") || null;
 
-  if (logoDataUrl) {
-    const imgHeight = 18;
-    const imgWidth = 18 * 1.2;
-    doc.addImage(logoDataUrl, "PNG", PAGE_MARGIN, currentY, imgWidth, imgHeight);
+  let headerTextX = PAGE_MARGIN;
+  if (logoAsset) {
+    const aspectRatio = logoAsset.width && logoAsset.height ? logoAsset.width / logoAsset.height : 1.3;
+    const imgHeight = 12;
+    const imgWidth = imgHeight * aspectRatio;
+    doc.addImage(logoAsset.dataUrl, "PNG", PAGE_MARGIN, currentY, imgWidth, imgHeight, undefined, "FAST");
+    headerTextX = PAGE_MARGIN + imgWidth + 10;
+  } else {
+    currentY += 2;
   }
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
-  doc.text("Secretaria de Estado da Educação de Goiás", PAGE_MARGIN + 25, currentY + 5);
+  doc.text("Secretaria de Estado da Educação de Goiás", headerTextX, currentY + 6);
   doc.setFontSize(12);
-  doc.text("Centro de Estudo e Pesquisa - Projeto Arte Educa", PAGE_MARGIN + 25, currentY + 12);
+  doc.text("Centro de Estudo e Pesquisa - Projeto Arte Educa", headerTextX, currentY + 13);
 
   currentY += 24;
   doc.setDrawColor(...PRIMARY_COLOR);
-  doc.setLineWidth(0.6);
+  doc.setLineWidth(0.4);
   doc.line(PAGE_MARGIN, currentY - 8, doc.internal.pageSize.getWidth() - PAGE_MARGIN, currentY - 8);
 
   doc.setFont("helvetica", "bold");
@@ -410,10 +436,14 @@ export async function generateProjectPdf({
   currentY = addKeyValueTable(doc, currentY, buildStatusRows(projeto, termo, declaracao));
 
   if (termo?.validado && termo?.conteudo) {
+    doc.addPage();
+    currentY = PAGE_MARGIN;
     currentY = addLongTextSection(doc, "Termo de Compromisso (Conteúdo Validado)", termo.conteudo);
   }
 
   if (declaracao?.validado && declaracao?.conteudo) {
+    doc.addPage();
+    currentY = PAGE_MARGIN;
     currentY = addLongTextSection(doc, "Declaração da CRE (Conteúdo Validado)", declaracao.conteudo);
   }
 

@@ -432,24 +432,29 @@ class LocalUserEntity extends LocalEntity {
     return { success: true };
   }
 
-  // Garantir que existe pelo menos um usuário admin
+  // Garantir que existe pelo menos um usuário admin com credenciais conhecidas
   async ensureAdminUser() {
+    const adminEmail = 'admin@adm';
     const allUsers = await super.list();
-    
-    if (allUsers.length === 0) {
-      const bcrypt = await import('bcryptjs');
-      const hashedPassword = await bcrypt.default.hash('admin123', 10);
-      
+
+    const bcrypt = await import('bcryptjs');
+    const hashedPassword = await bcrypt.default.hash('admin123', 10);
+
+    const existingAdmin = allUsers.find((user) =>
+      user?.email?.toLowerCase() === adminEmail || user?.app_role === 'admin'
+    );
+
+    if (!existingAdmin) {
       const adminUser = {
         id: 'user-admin-001',
         full_name: 'Administrador',
-        email: 'admin@adm',
+        email: adminEmail,
         password: hashedPassword,
         app_role: 'admin',
         role: 'admin',
         name: 'Administrador',
         available_roles: ['admin', 'gestor', 'articulador', 'professor'],
-  is_admin_account: true,
+        is_admin_account: true,
         cpf: '000.000.000-00',
         cre: 'CRE 01',
         municipio: 'Goiânia',
@@ -462,8 +467,29 @@ class LocalUserEntity extends LocalEntity {
       console.log('✅ Usuário admin criado: admin@adm / admin123');
       return adminUser;
     }
-    
-    return null;
+
+    const mustResetPassword = !existingAdmin.password
+      || !(existingAdmin.password.startsWith('$2a$') || existingAdmin.password.startsWith('$2b$'));
+
+    const updatePayload = {
+      email: adminEmail,
+      app_role: 'admin',
+      role: 'admin',
+      full_name: existingAdmin.full_name || existingAdmin.name || 'Administrador',
+      name: existingAdmin.name || existingAdmin.full_name || 'Administrador',
+      available_roles: ['admin', 'gestor', 'articulador', 'professor'],
+      is_admin_account: true,
+    };
+
+    if (mustResetPassword) {
+      updatePayload.password = hashedPassword;
+      console.log('♻️ Senha do admin redefinida para admin123');
+    }
+
+    await super.update(existingAdmin.id, updatePayload);
+    console.log('🔄 Conta admin verificada e atualizada.');
+
+    return { ...existingAdmin, ...updatePayload };
   }
 }
 
