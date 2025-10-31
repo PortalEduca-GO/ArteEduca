@@ -76,6 +76,7 @@ async function loadImageAsPngDataUrl(path) {
     return await new Promise((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
+      const objectUrl = window.URL.createObjectURL(blob);
       img.onload = () => {
         try {
           const canvas = document.createElement("canvas");
@@ -88,11 +89,14 @@ async function loadImageAsPngDataUrl(path) {
         } catch (err) {
           reject(err);
         } finally {
-          window.URL.revokeObjectURL(img.src);
+          window.URL.revokeObjectURL(objectUrl);
         }
       };
-      img.onerror = reject;
-      img.src = window.URL.createObjectURL(blob);
+      img.onerror = (err) => {
+        window.URL.revokeObjectURL(objectUrl);
+        reject(err);
+      };
+      img.src = objectUrl;
     });
   } catch (error) {
     console.warn("Não foi possível carregar o logo para o PDF:", error.message);
@@ -174,11 +178,18 @@ function addLongTextSection(doc, title, text, currentY) {
   if (!text) return currentY;
 
   currentY = addSectionTitle(doc, title, currentY);
-  const lines = doc.splitTextToSize(text, doc.internal.pageSize.getWidth() - PAGE_MARGIN * 2);
-  lines.forEach((line) => {
-    currentY = ensureSpace(doc, currentY, 10);
-    doc.text(line, PAGE_MARGIN, currentY);
-    currentY += 5;
+  const paragraphs = String(text).split(/\r?\n/);
+  const maxWidth = doc.internal.pageSize.getWidth() - PAGE_MARGIN * 2;
+
+  paragraphs.forEach((paragraph) => {
+    const content = paragraph.trim().length ? paragraph : " ";
+    const wrappedLines = doc.splitTextToSize(content, maxWidth);
+    wrappedLines.forEach((line) => {
+      currentY = ensureSpace(doc, currentY, 10);
+      doc.text(line, PAGE_MARGIN, currentY);
+      currentY += 5;
+    });
+    currentY += 2;
   });
 
   return currentY + SECTION_MARGIN;
@@ -187,15 +198,17 @@ function addLongTextSection(doc, title, text, currentY) {
 function buildIdentificacaoRows(projeto) {
   const identificacao = projeto?.identificacao || {};
   const professor = identificacao.professor || {};
+  const turnos = Array.isArray(projeto?.quadroHorario?.turno) ? projeto.quadroHorario.turno : [];
 
   return [
-    ["Tipo de Projeto", STATUS_LABELS[projeto?.tipoProjeto] || safeText(projeto?.tipoProjeto)],
+    ["Tipo de Projeto", getProjectTypeLabel(projeto?.tipoProjeto)],
     ["CRE", safeText(identificacao.cre)],
     ["Município", safeText(identificacao.municipio)],
     ["Unidade Educacional", safeText(identificacao.unidadeEducacional)],
     ["INEP", safeText(identificacao.inep)],
     ["Tipo de Matriz", safeText(identificacao.tipoMatriz)],
     ["Quantidade de Estudantes", safeText(identificacao.quantidadeEstudantes)],
+    ["Turnos", safeText(turnos)],
     ["Etapas de Ensino", safeText(identificacao.etapasEnsino)],
     ["Professor Responsável", safeText(professor.nome)],
     ["CPF", safeText(professor.cpf)],
@@ -357,9 +370,12 @@ export async function generateProjectPdf({
   }
 
   const professor = projeto?.identificacao?.professor || {};
+  const contatoParts = [professor.telefone, professor.email]
+    .map((item) => (item ? item.toString().trim() : ""))
+    .filter((item) => item.length > 0);
   const recursosHumanosRows = [
     ["Professor Responsável", safeText(professor.nome)],
-    ["Contato", `${safeText(professor.telefone)} | ${safeText(professor.email)}`]
+    ["Contato", contatoParts.length ? contatoParts.join(" | ") : "Não informado"]
   ];
   currentY = addSectionTitle(doc, "Recursos Humanos", currentY);
   currentY = addKeyValueTable(doc, currentY, recursosHumanosRows);

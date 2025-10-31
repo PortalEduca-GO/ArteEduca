@@ -702,17 +702,15 @@ export default function Dashboard() {
                       </button>
                 }
 
-                    {projeto.status !== 'rascunho' &&
-                      <button
-                        onClick={() => handleDownloadProjetoPdf(projeto)}
-                        disabled={downloadingPdfId === projeto.id}
-                        className="neu-button px-4 py-2 rounded-lg text-gray-600 hover:text-gray-800 flex items-center space-x-2 disabled:opacity-60"
-                        title="Baixar Projeto em PDF">
+                    <button
+                      onClick={() => handleDownloadProjetoPdf(projeto)}
+                      disabled={downloadingPdfId === projeto.id}
+                      className="neu-button px-4 py-2 rounded-lg text-gray-600 hover:text-gray-800 flex items-center space-x-2 disabled:opacity-60"
+                      title="Baixar Projeto em PDF">
 
-                          <Download className={`w-4 h-4 ${downloadingPdfId === projeto.id ? 'animate-pulse' : ''}`} />
-                          <span>{downloadingPdfId === projeto.id ? 'Gerando...' : 'Baixar PDF'}</span>
-                      </button>
-                    }
+                        <Download className={`w-4 h-4 ${downloadingPdfId === projeto.id ? 'animate-pulse' : ''}`} />
+                        <span>{downloadingPdfId === projeto.id ? 'Gerando...' : 'Baixar PDF'}</span>
+                    </button>
                   </div>
                 </div>
               </AccordionContent>
