@@ -435,18 +435,25 @@ class LocalUserEntity extends LocalEntity {
   // Garantir que existe pelo menos um usuário admin com credenciais conhecidas
   async ensureAdminUser() {
     const adminEmail = 'admin@adm';
+    const adminId = 'user-admin-001';
     const allUsers = await super.list();
 
     const bcrypt = await import('bcryptjs');
     const hashedPassword = await bcrypt.default.hash('admin123', 10);
 
-    const existingAdmin = allUsers.find((user) =>
-      user?.email?.toLowerCase() === adminEmail || user?.app_role === 'admin'
-    );
+    let existingAdmin = allUsers.find((user) => user?.email?.toLowerCase() === adminEmail);
+
+    if (!existingAdmin) {
+      existingAdmin = allUsers.find((user) => user?.id === adminId);
+    }
+
+    if (!existingAdmin) {
+      existingAdmin = allUsers.find((user) => user?.app_role === 'admin' || user?.role === 'admin');
+    }
 
     if (!existingAdmin) {
       const adminUser = {
-        id: 'user-admin-001',
+        id: adminId,
         full_name: 'Administrador',
         email: adminEmail,
         password: hashedPassword,
@@ -463,13 +470,36 @@ class LocalUserEntity extends LocalEntity {
         created_date: new Date().toISOString()
       };
 
-      await super.create(adminUser);
-      console.log('✅ Usuário admin criado: admin@adm / admin123');
-      return adminUser;
+      try {
+        const created = await super.create(adminUser);
+        console.log('✅ Usuário admin criado: admin@adm / admin123');
+        existingAdmin = created;
+      } catch (error) {
+        if (error?.name === 'ConstraintError') {
+          console.warn('⚠️ Registro admin já existia; atualizando dados do usuário padrão.');
+          existingAdmin = await super.get(adminId).catch(() => null);
+
+          if (!existingAdmin) {
+            const refreshedUsers = await super.list();
+            existingAdmin = refreshedUsers.find((user) =>
+              user?.email?.toLowerCase() === adminEmail
+              || user?.app_role === 'admin'
+              || user?.role === 'admin'
+            );
+          }
+        } else {
+          throw error;
+        }
+      }
     }
 
-    const mustResetPassword = !existingAdmin.password
-      || !(existingAdmin.password.startsWith('$2a$') || existingAdmin.password.startsWith('$2b$'));
+    if (!existingAdmin) {
+      throw new Error('Não foi possível garantir a conta administrativa padrão.');
+    }
+
+    const passwordValue = existingAdmin.password || '';
+    const isBcryptHash = typeof passwordValue === 'string' && /^\$2[abxy]\$/.test(passwordValue);
+    const mustResetPassword = !isBcryptHash;
 
     const updatePayload = {
       email: adminEmail,
@@ -486,10 +516,10 @@ class LocalUserEntity extends LocalEntity {
       console.log('♻️ Senha do admin redefinida para admin123');
     }
 
-    await super.update(existingAdmin.id, updatePayload);
+    const updated = await super.update(existingAdmin.id || adminId, updatePayload);
     console.log('🔄 Conta admin verificada e atualizada.');
 
-    return { ...existingAdmin, ...updatePayload };
+    return this.normalizeUser(updated);
   }
 }
 

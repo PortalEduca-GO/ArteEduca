@@ -530,6 +530,29 @@ export default function ProjetoArteEducaPage() {
     { id: 'final', name: 'Finalização', icon: Send }
   ];
 
+  const currentSectionIndex = sections.findIndex((section) => section.id === activeSection);
+  const previousSection = currentSectionIndex > 0 ? sections[currentSectionIndex - 1] : null;
+  const nextSection = currentSectionIndex < sections.length - 1 ? sections[currentSectionIndex + 1] : null;
+
+  const navigateToSection = (sectionId) => {
+    setActiveSection(sectionId);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleNextSection = () => {
+    if (nextSection) {
+      navigateToSection(nextSection.id);
+    }
+  };
+
+  const handlePreviousSection = () => {
+    if (previousSection) {
+      navigateToSection(previousSection.id);
+    }
+  };
+
   const totalHorasCalculadas = React.useMemo(() => {
     if (!projeto?.quadroHorario) return 0;
     const { modulacaoPrincipal } = projeto.quadroHorario;
@@ -1740,14 +1763,14 @@ export default function ProjetoArteEducaPage() {
                         <div className="mt-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Processo SEI:</label>
                             <div className="flex items-center justify-center gap-2">
-                                <input
-                                    type="text"
-                                    value={currentSeiNumber}
-                                    onChange={(e) => setCurrentSeiNumber(e.target.value)}
-                                    className="neu-input w-full max-w-xs px-4 py-3 text-gray-700 text-center"
-                                    placeholder="Insira o número SEI"
-                                    maxLength={13}
-                                />
+                <input
+                  type="text"
+                  value={currentSeiNumber}
+                  onChange={(e) => setCurrentSeiNumber(e.target.value)}
+                  className="neu-input w-full max-w-xs px-4 py-3 text-gray-700 text-center"
+                  placeholder="Insira o número SEI"
+                  maxLength={17}
+                />
                                 <button
                                     onClick={handleSeiNumberUpdate}
                                     disabled={saving}
@@ -1771,6 +1794,26 @@ export default function ProjetoArteEducaPage() {
             )}
           </div>
         )}
+      </div>
+
+      <div className="neu-card p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <button
+          onClick={handlePreviousSection}
+          disabled={!previousSection}
+          className="neu-button px-5 py-3 rounded-xl w-full sm:w-auto disabled:opacity-40"
+        >
+          {previousSection ? `← Voltar para ${previousSection.name}` : 'Início'}
+        </button>
+        <p className="text-sm text-gray-600 text-center flex-1">
+          {nextSection ? `Próxima etapa: ${nextSection.name}` : 'Você chegou à etapa Finalização.'}
+        </p>
+        <button
+          onClick={handleNextSection}
+          disabled={!nextSection}
+          className="neu-button-primary px-5 py-3 rounded-xl w-full sm:w-auto disabled:opacity-40"
+        >
+          {nextSection ? `Avançar para ${nextSection.name} →` : 'Etapa final'}
+        </button>
       </div>
     </div>
   );
