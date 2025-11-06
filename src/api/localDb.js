@@ -380,7 +380,7 @@ class LocalUserEntity extends LocalEntity {
       const defaultUser = this.normalizeUser({
         id: 'user-dev-001',
         full_name: 'Administrador',
-        email: 'admin@localhost.com',
+        email: 'admin@adm',
         password: hashedPassword,
         app_role: 'admin',
         cpf: '000.000.000-00',
