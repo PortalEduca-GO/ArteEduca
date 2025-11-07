@@ -43,6 +43,7 @@ CREATE TABLE arteeduca.users (
     is_active BIT NOT NULL DEFAULT 1,
     created_at DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
     updated_at DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
+    data_json NVARCHAR(MAX) NULL,
     row_version ROWVERSION NOT NULL,
     CONSTRAINT PK_users PRIMARY KEY CLUSTERED (id),
     CONSTRAINT UQ_users_email UNIQUE (email),
@@ -65,6 +66,7 @@ CREATE TABLE arteeduca.escolas (
     email NVARCHAR(120) NULL,
     created_at DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
     updated_at DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
+    data_json NVARCHAR(MAX) NULL,
     row_version ROWVERSION NOT NULL,
     CONSTRAINT PK_escolas PRIMARY KEY CLUSTERED (id),
     CONSTRAINT UQ_escolas_inep UNIQUE (inep)
@@ -86,6 +88,7 @@ CREATE TABLE arteeduca.forms (
     created_by_user_id UNIQUEIDENTIFIER NULL,
     created_at DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
     updated_at DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
+    data_json NVARCHAR(MAX) NULL,
     row_version ROWVERSION NOT NULL,
     CONSTRAINT PK_forms PRIMARY KEY CLUSTERED (id),
     CONSTRAINT FK_forms_created_by FOREIGN KEY (created_by_user_id) REFERENCES arteeduca.users(id) ON DELETE SET NULL
@@ -144,6 +147,7 @@ CREATE TABLE arteeduca.projetos (
     referencias NVARCHAR(MAX) NULL,
     created_at DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
     updated_at DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
+    data_json NVARCHAR(MAX) NULL,
     row_version ROWVERSION NOT NULL,
     CONSTRAINT PK_projetos PRIMARY KEY CLUSTERED (id),
     CONSTRAINT UQ_projetos_external_id UNIQUE (external_id),
@@ -269,6 +273,7 @@ CREATE TABLE arteeduca.termos_compromisso (
     data_validacao DATETIME2(0) NULL,
     created_at DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
     updated_at DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
+    data_json NVARCHAR(MAX) NULL,
     row_version ROWVERSION NOT NULL,
     CONSTRAINT PK_termos_compromisso PRIMARY KEY CLUSTERED (id),
     CONSTRAINT FK_termos_compromisso_projeto FOREIGN KEY (projeto_id) REFERENCES arteeduca.projetos(id) ON DELETE CASCADE
@@ -286,6 +291,7 @@ CREATE TABLE arteeduca.declaracoes_cre (
     data_validacao DATETIME2(0) NULL,
     created_at DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
     updated_at DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
+    data_json NVARCHAR(MAX) NULL,
     row_version ROWVERSION NOT NULL,
     CONSTRAINT PK_declaracoes_cre PRIMARY KEY CLUSTERED (id),
     CONSTRAINT FK_declaracoes_cre_projeto FOREIGN KEY (projeto_id) REFERENCES arteeduca.projetos(id) ON DELETE CASCADE

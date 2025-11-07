@@ -10,6 +10,9 @@ import '@fontsource/roboto/700.css'
 import '@/styles/globals.css'
 import '@/index.css'
 
+const apiBase = (import.meta.env?.VITE_API_BASE_URL || 'http://localhost:3001/api').replace(/\/$/, '')
+window.ARTE_EDUCA_API_BASE = apiBase
+
 ReactDOM.createRoot(document.getElementById('root')).render(
     <ThemeProvider theme={appTheme}>
         <CssBaseline />

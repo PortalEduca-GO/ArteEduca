@@ -38,75 +38,66 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // Buscar todos os usuários
-      const users = await User.list();
-      console.log('📋 Total de usuários encontrados:', users.length);
+      // Buscar usuário específico por email usando o endpoint /me
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/users/me?email=${encodeURIComponent(email)}`);
       
-      // Encontrar usuário pelo email
-      const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-      
-      if (!user) {
-        console.log('❌ Usuário não encontrado para:', email);
-        console.log('📧 Emails disponíveis:', users.map(u => u.email));
+      if (!response.ok) {
         setError('Email ou senha incorretos');
         setLoading(false);
         return;
       }
       
-      console.log('✅ Usuário encontrado:', user.email);
+      const user = await response.json();
 
       // Verificar senha
       let passwordValid = false;
       
       if (user.password) {
-        console.log('🔐 Verificando senha...');
         // Se a senha estiver hasheada, usar bcrypt
         if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
-          console.log('🔑 Senha hasheada detectada, usando bcrypt');
           passwordValid = await bcrypt.compare(password, user.password);
-          console.log('🔍 Resultado bcrypt:', passwordValid);
         } else {
-          console.log('⚠️ Senha em texto plano detectada');
           // Senha em texto plano (migração antiga)
           passwordValid = user.password === password;
           
           // Se for válida, atualizar para hash
           if (passwordValid) {
-            console.log('✅ Senha válida, hasheando...');
             const hashedPassword = await bcrypt.hash(password, 10);
             await User.update(user.id, { password: hashedPassword });
           }
         }
       } else {
-        console.log('❌ Usuário sem senha cadastrada');
         setError('Usuário sem senha cadastrada. Entre em contato com o administrador.');
         setLoading(false);
         return;
       }
 
       if (!passwordValid) {
-        console.log('❌ Senha inválida');
         setError('Email ou senha incorretos');
         setLoading(false);
         return;
       }
-      
-      console.log('✅ Login bem-sucedido!');
 
       // Login bem-sucedido - atualizar sessão
       localStorage.setItem('currentUser', JSON.stringify(user));
       localStorage.setItem('isAuthenticated', 'true');
-      
-      // Redirecionar baseado no perfil completado ou não
-      const isProfileComplete = user.cpf && user.cre && user.inep;
-      
-      if (isProfileComplete) {
-        navigate(createPageUrl('Dashboard'));
-      } else {
+
+      // Recarregar dados do usuário a partir da API para garantir campos atualizados
+      try {
+        const refreshedUser = await User.me();
+        localStorage.setItem('currentUser', JSON.stringify(refreshedUser));
+
+        const isProfileComplete = refreshedUser.cpf && refreshedUser.cre && refreshedUser.inep;
+
+        if (isProfileComplete) {
+          navigate(createPageUrl('Dashboard'));
+        } else {
+          navigate(createPageUrl('Profile'));
+        }
+      } catch (refreshError) {
+        console.error('Erro ao atualizar dados do usuário após login:', refreshError);
         navigate(createPageUrl('Profile'));
       }
-      
-      window.location.reload(); // Recarregar para atualizar contexto global
       
     } catch (error) {
       console.error('Erro ao fazer login:', error);

@@ -7,9 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "mode:local": "node scripts/toggle-mode.js local",
-    "mode:base44": "node scripts/toggle-mode.js base44"
+  "preview": "vite preview"
   },
   "dependencies": {
     "@base44/sdk": "^0.1.2",
